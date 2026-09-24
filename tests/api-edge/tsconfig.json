@@ -1,0 +1,19 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node", "@cloudflare/workers-types"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@api-edge/*": ["../../apps/api-edge/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../apps/api-edge/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

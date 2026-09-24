@@ -1,0 +1,89 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: api-edge
+  description: Cloudflare Worker for the API edge Runtime
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: starter-runtime
+  path: apps/api-edge
+  dependsOn:
+    - component: cloudflare-d1
+    - component: cloudflare-kv
+    - component: projects-worker
+    - component: events-worker
+    - component: config-worker
+    - component: webhooks-worker
+    - component: billing-worker
+    - component: integrations-worker
+    - component: identity-worker
+    - component: membership-worker
+    - component: metering-worker
+    - component: notifications-worker
+  # BF6 wiring documents from orun secrets (SEC-JOB): lease-published by
+  # the infra components; wire-live renders the wrangler template from
+  # these instead of Secrets Manager documents.
+  secretEnv:
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://ws_EVPG35GG/meterwise/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://ws_EVPG35GG/meterwise/prod/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_KV_STAGE: "secret://ws_EVPG35GG/meterwise/stage/WIRING_CLOUDFLARE_KV"
+    WIRING_CLOUDFLARE_KV_PROD: "secret://ws_EVPG35GG/meterwise/prod/WIRING_CLOUDFLARE_KV"
+
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+
+    workspaceDir: ../..
+    appDir: .
+
+    turboFilter: "@saas/api-edge"
+    wranglerConfig: wrangler.jsonc
+
+    # BF6 deploy-time wiring (pilot): wrangler.jsonc is rendered, never
+    # committed. Verify lanes render from wiring.fixture.json (offline);
+    # deploy lanes resolve real IDs from the Secrets Manager wiring manifest
+    # published by the named infra components (BF5).
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: "cloudflare-d1,cloudflare-kv"
+    wiringEnvs: "stage,prod"
+    wiringFixture: wiring.fixture.json
+    orgName: sourceplane
+    owner: sourceplane
+    repo: meterwise
+
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/api-edge
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@saas/api-edge
+
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'No migrations configured.'"
+    smokeCommand: "echo 'No smoke test configured.'"
+  labels:
+    team: platform
+    layer: runtime
+    surface: api
+    runtime: cloudflare
+# ci: re-trigger deploy (batch C — integrations + api-edge gateway, 20260622T141448Z)
+# ci: re-trigger deploy (batch C — integrations + api-edge gateway, 20260622T141448Z)
+# orun: redeploy 05-edge 20260924T011005Z

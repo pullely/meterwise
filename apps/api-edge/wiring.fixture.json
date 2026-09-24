@@ -1,0 +1,14 @@
+{
+  "cloudflare-d1/stage": {
+    "d1_database_id": "00000000000000000000000000000001"
+  },
+  "cloudflare-kv/stage": {
+    "api_edge_idempotency_kv_id": "00000000000000000000000000000002"
+  },
+  "cloudflare-d1/prod": {
+    "d1_database_id": "00000000000000000000000000000003"
+  },
+  "cloudflare-kv/prod": {
+    "api_edge_idempotency_kv_id": "00000000000000000000000000000004"
+  }
+}
