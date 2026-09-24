@@ -1,0 +1,107 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
+// Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
+// committed wiring.fixture.json for offline dry-runs (wire-fixture).
+{
+  "name": "meterwise-identity-worker",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  // OAuth (B1) configuration:
+  //   - Non-secret vars are declared per-env below. Replace the empty
+  //     {GITHUB,GOOGLE}_OAUTH_CLIENT_ID placeholders with the client id of the
+  //     OAuth app registered for that provider + environment.
+  //   - Secrets are NEVER stored here. Set them with:
+  //       wrangler secret put GITHUB_OAUTH_CLIENT_SECRET --env <env>
+  //       wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET --env <env>
+  //       wrangler secret put OAUTH_STATE_SECRET         --env <env>
+  //   - Each OAuth app's authorized redirect/callback URL must be:
+  //       {OAUTH_REDIRECT_BASE_URL}/v1/auth/oauth/{github|google}/callback
+  "vars": {
+    "ENVIRONMENT": "local",
+    "DEBUG_DELIVERY": "true",
+    "GITHUB_OAUTH_CLIENT_ID": "",
+    "GOOGLE_OAUTH_CLIENT_ID": "",
+    "OAUTH_REDIRECT_BASE_URL": "http://localhost:8787",
+    "OAUTH_ALLOWED_CONSOLE_ORIGINS": "http://localhost:3000",
+    "SOLO_MODE": "true"
+  },
+  "env": {
+    "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev",
+        "DEBUG_DELIVERY": "true",
+        "GITHUB_OAUTH_CLIENT_ID": "",
+        "GOOGLE_OAUTH_CLIENT_ID": "",
+        "OAUTH_REDIRECT_BASE_URL": "",
+        "OAUTH_ALLOWED_CONSOLE_ORIGINS": "https://meterwise-web-console-next-dev.nexo-7be.workers.dev",
+        "SOLO_MODE": "true"
+      }
+    },
+    "stage": {
+      "vars": {
+        "ENVIRONMENT": "stage",
+        "DEBUG_DELIVERY": "true",
+        "GITHUB_OAUTH_CLIENT_ID": "Ov23liKBsjAqJJsmBavV",
+        "GOOGLE_OAUTH_CLIENT_ID": "441163126775-7fabhvpbl9tsga921rklpdlde7mduq34.apps.googleusercontent.com",
+        "OAUTH_REDIRECT_BASE_URL": "https://meterwise-api-edge-stage.nexo-7be.workers.dev",
+        "OAUTH_ALLOWED_CONSOLE_ORIGINS": "https://stage.meterwise.app,https://meterwise-web-console-next-stage.nexo-7be.workers.dev",
+        "SOLO_MODE": "true"
+      },
+      "d1_databases": [
+        {
+          "binding": "PLATFORM_DB",
+          "database_name": "meterwise-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MEMBERSHIP_WORKER",
+          "service": "meterwise-membership-worker-stage"
+        },
+        {
+          "binding": "POLICY_WORKER",
+          "service": "meterwise-policy-worker-stage"
+        },
+        {
+          "binding": "NOTIFICATIONS_WORKER",
+          "service": "meterwise-notifications-worker-stage"
+        }
+      ]
+    },
+    "prod": {
+      "vars": {
+        "ENVIRONMENT": "prod",
+        "DEBUG_DELIVERY": "false",
+        "GITHUB_OAUTH_CLIENT_ID": "Ov23lilp2aoyeBDVU8Vc",
+        "GOOGLE_OAUTH_CLIENT_ID": "441163126775-7fabhvpbl9tsga921rklpdlde7mduq34.apps.googleusercontent.com",
+        "OAUTH_REDIRECT_BASE_URL": "https://meterwise-api-edge-prod.nexo-7be.workers.dev",
+        "OAUTH_ALLOWED_CONSOLE_ORIGINS": "https://prod.meterwise.app,https://meterwise-web-console-next-prod.nexo-7be.workers.dev",
+        "SOLO_MODE": "true"
+      },
+      "d1_databases": [
+        {
+          "binding": "PLATFORM_DB",
+          "database_name": "meterwise-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MEMBERSHIP_WORKER",
+          "service": "meterwise-membership-worker-prod"
+        },
+        {
+          "binding": "POLICY_WORKER",
+          "service": "meterwise-policy-worker-prod"
+        },
+        {
+          "binding": "NOTIFICATIONS_WORKER",
+          "service": "meterwise-notifications-worker-prod"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": [
+      "jest",
+      "node",
+      "@cloudflare/workers-types"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": [
+        "../../packages/contracts/src/index.ts"
+      ],
+      "@saas/contracts/*": [
+        "../../packages/contracts/src/*.ts"
+      ],
+      "@saas/db/*": [
+        "../../packages/db/src/*/index.ts"
+      ],
+      "@metering-worker/*": [
+        "../../apps/metering-worker/src/*.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../apps/metering-worker/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

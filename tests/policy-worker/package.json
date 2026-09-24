@@ -1,0 +1,40 @@
+{
+  "name": "@saas/policy-worker-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "extensionsToTreatAsEsm": [".ts"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1",
+      "^@saas/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
+      "^@saas/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1.ts",
+      "^@saas/policy-engine$": "<rootDir>/../../packages/policy-engine/src/index.ts",
+      "^@policy-worker/(.*)$": "<rootDir>/../../apps/policy-worker/src/$1.ts"
+    },
+    "transform": {
+      "^.+\\.ts$": ["ts-jest", { "useESM": true }]
+    },
+    "testMatch": ["<rootDir>/src/**/*.test.ts"]
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250508.0",
+    "@saas/eslint-config": "workspace:*",
+    "@saas/tsconfig": "workspace:*",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@saas/contracts": "workspace:*",
+    "@saas/policy-engine": "workspace:*"
+  }
+}

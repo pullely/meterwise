@@ -1,0 +1,20 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node", "@cloudflare/workers-types"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/policy-engine": ["../../packages/policy-engine/src/index.ts"],
+      "@policy-worker/*": ["../../apps/policy-worker/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../apps/policy-worker/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
