@@ -1,0 +1,33 @@
+{
+  "name": "@saas/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "meterwise": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json && node scripts/bundle.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@saas/eslint-config": "workspace:*",
+    "@saas/tsconfig": "workspace:*",
+    "@types/node": "^20.14.0",
+    "esbuild": "^0.25.4",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "@saas/sdk": "workspace:*",
+    "@saas/webhook-verifier": "workspace:*"
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
+  }
+}

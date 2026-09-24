@@ -1,0 +1,29 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/db": ["../../packages/db/src/index.ts"],
+      "@saas/db/d1": ["../../packages/db/src/d1/index.ts"],
+      "@saas/db/identity": ["../../packages/db/src/identity/index.ts"],
+      "@saas/db/runner": ["../../packages/db/src/runner/index.ts"],
+      "@saas/db/manifest": ["../../packages/db/src/manifest.ts"],
+      "@saas/db/types": ["../../packages/db/src/types.ts"],
+      "@saas/db/membership": ["../../packages/db/src/membership/index.ts"],
+      "@saas/db/events": ["../../packages/db/src/events/index.ts"],
+      "@saas/db/projects": ["../../packages/db/src/projects/index.ts"],
+      "@saas/db/config": ["../../packages/db/src/config/index.ts"],
+      "@saas/db/webhooks": ["../../packages/db/src/webhooks/index.ts"],
+      "@saas/db/metering": ["../../packages/db/src/metering/index.ts"],
+      "@saas/db/billing": ["../../packages/db/src/billing/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

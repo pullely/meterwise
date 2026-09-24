@@ -1,0 +1,13 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/testing": ["../../packages/testing/src/index.ts"],
+      "@saas/testing/*": ["../../packages/testing/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/testing/src/**/*.ts", "../../packages/contracts/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

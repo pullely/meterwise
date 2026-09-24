@@ -1,0 +1,28 @@
+export type {
+  User,
+  AuthIdentity,
+  LoginChallenge,
+  Session,
+  SecurityEvent,
+  CreateUserInput,
+  CreateAuthIdentityInput,
+  CreateLoginChallengeInput,
+  CreateSessionInput,
+  CreateSecurityEventInput,
+  SecurityEventCursorPosition,
+  SecurityEventPageQueryParams,
+  SecurityEventPagedResult,
+  IdentityRepository,
+  IdentityResult,
+  IdentityRepositoryError,
+  ApiKey,
+  ServicePrincipal,
+  CreateServicePrincipalInput,
+  CreateApiKeyInput,
+  ApiKeyCursorPosition,
+  ApiKeyPageQueryParams,
+  ApiKeyPagedResult,
+  UpdateUserProfileInput,
+} from "./types.js";
+
+export { createIdentityRepository } from "./repository.js";
