@@ -1,0 +1,19 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/policy-engine": ["../../packages/policy-engine/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

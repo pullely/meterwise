@@ -1,0 +1,19 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node", "@cloudflare/workers-types"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/notifications-client": ["../../packages/notifications-client/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/notifications-client/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

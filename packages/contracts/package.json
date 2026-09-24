@@ -1,0 +1,38 @@
+{
+  "name": "@saas/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./health": "./src/health.ts",
+    "./timing": "./src/timing.ts",
+    "./errors": "./src/errors.ts",
+    "./tenancy": "./src/tenancy.ts",
+    "./auth": "./src/auth.ts",
+    "./membership": "./src/membership.ts",
+    "./policy": "./src/policy.ts",
+    "./projects": "./src/projects.ts",
+    "./events": "./src/events.ts",
+    "./security-events": "./src/security-events.ts",
+    "./api-keys": "./src/api-keys.ts",
+    "./service-principal": "./src/service-principal.ts",
+    "./config": "./src/config.ts",
+    "./webhooks": "./src/webhooks.ts",
+    "./metering": "./src/metering.ts",
+    "./billing": "./src/billing.ts",
+    "./notifications": "./src/notifications.ts",
+    "./integrations": "./src/integrations.ts",
+    "./idempotency": "./src/idempotency.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@saas/eslint-config": "workspace:*",
+    "@saas/tsconfig": "workspace:*",
+    "typescript": "^5.8.3"
+  }
+}
