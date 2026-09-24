@@ -73,11 +73,6 @@ function mapRoleAssignment(row: Record<string, unknown>): RoleAssignment {
   };
 }
 
-function parseJsonColumn(value: unknown): Record<string, unknown> {
-  if (typeof value === "string") return JSON.parse(value) as Record<string, unknown>;
-  return value as Record<string, unknown>;
-}
-
 function safeError(message: string, cause?: unknown): MembershipResult<never> {
   // Surface the underlying DB error so failures are diagnosable in `wrangler
   // tail` instead of silently collapsing into an opaque internal error. Only
@@ -225,55 +220,75 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     },
 
     async bootstrapOrganization(input: BootstrapOrganizationInput): Promise<MembershipResult<{ org: Organization; member: OrganizationMember; roleAssignment: RoleAssignment }>> {
+      // chaseid CH3: three statements, not one. The baseline wrote this as a
+      // single Postgres data-modifying CTE with row_to_json, which SQLite —
+      // and so D1 — cannot parse (`near "INSERT": syntax error`), so no
+      // organization could ever be created on this stack. D1 has no
+      // interactive transaction to hold the three inserts, so a failure after
+      // the org row is compensated by deleting what was written, in reverse.
+      let orgWritten = false;
+      let memberWritten = false;
       try {
-        const result = await executor.execute<Record<string, unknown>>(
-          `WITH new_org AS (
-            INSERT INTO membership_organizations (id, name, slug, slug_lower, parent_org_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $19, $5, $5)
-            ON CONFLICT (id) DO NOTHING
-            RETURNING *
-          ),
-          new_member AS (
-            INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
-            SELECT $6, $7, $8, $9, $10, $10
-            FROM new_org
-            ON CONFLICT (id) DO NOTHING
-            RETURNING *
-          ),
-          new_role AS (
-            INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
-            SELECT $11, $12, $13, $14, $15, $16, $17, $18
-            FROM new_member
-            ON CONFLICT (id) DO NOTHING
-            RETURNING *
-          )
-          SELECT
-            row_to_json(o.*) as org,
-            row_to_json(m.*) as member,
-            row_to_json(r.*) as role_assignment
-          FROM new_org o
-          CROSS JOIN new_member m
-          CROSS JOIN new_role r`,
+        const orgRows = await executor.execute<Record<string, unknown>>(
+          `INSERT INTO membership_organizations (id, name, slug, slug_lower, parent_org_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $6)
+           ON CONFLICT (id) DO NOTHING
+           RETURNING *`,
           [
-            input.org.id, input.org.name, input.org.slug, input.org.slugLower, input.org.createdAt.toISOString(),
-            input.member.id, input.member.orgId, input.member.subjectId, input.member.subjectType, input.member.createdAt.toISOString(),
-            input.roleAssignment.id, input.roleAssignment.orgId, input.roleAssignment.subjectId, input.roleAssignment.subjectType, input.roleAssignment.role, input.roleAssignment.scopeKind, input.roleAssignment.scopeRef ?? null, input.roleAssignment.createdAt.toISOString(),
-            input.org.parentOrgId ?? null,
+            input.org.id, input.org.name, input.org.slug, input.org.slugLower,
+            input.org.parentOrgId ?? null, input.org.createdAt.toISOString(),
           ],
         );
-        if (result.rowCount === 0) {
+        if (orgRows.rowCount === 0) {
           return { ok: false, error: { kind: "conflict", entity: "organization" } };
         }
-        const row = result.rows[0]!;
+        orgWritten = true;
+
+        const memberRows = await executor.execute<Record<string, unknown>>(
+          `INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $5)
+           ON CONFLICT (id) DO NOTHING
+           RETURNING *`,
+          [
+            input.member.id, input.member.orgId, input.member.subjectId, input.member.subjectType,
+            input.member.createdAt.toISOString(),
+          ],
+        );
+        if (memberRows.rowCount === 0) throw new Error("member insert returned no row");
+        memberWritten = true;
+
+        const roleRows = await executor.execute<Record<string, unknown>>(
+          `INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO NOTHING
+           RETURNING *`,
+          [
+            input.roleAssignment.id, input.roleAssignment.orgId, input.roleAssignment.subjectId,
+            input.roleAssignment.subjectType, input.roleAssignment.role, input.roleAssignment.scopeKind,
+            input.roleAssignment.scopeRef ?? null, input.roleAssignment.createdAt.toISOString(),
+          ],
+        );
+        if (roleRows.rowCount === 0) throw new Error("role assignment insert returned no row");
+
         return {
           ok: true,
           value: {
-            org: mapOrganization(parseJsonColumn(row.org)),
-            member: mapMember(parseJsonColumn(row.member)),
-            roleAssignment: mapRoleAssignment(parseJsonColumn(row.role_assignment)),
+            org: mapOrganization(orgRows.rows[0]!),
+            member: mapMember(memberRows.rows[0]!),
+            roleAssignment: mapRoleAssignment(roleRows.rows[0]!),
           },
         };
       } catch (err: unknown) {
+        if (orgWritten) {
+          try {
+            if (memberWritten) {
+              await executor.execute(`DELETE FROM membership_organization_members WHERE id = $1`, [input.member.id]);
+            }
+            await executor.execute(`DELETE FROM membership_organizations WHERE id = $1`, [input.org.id]);
+          } catch {
+            // The compensation is best-effort; the original error is what matters.
+          }
+        }
         if (isUniqueViolation(err)) {
           return { ok: false, error: { kind: "conflict", entity: "organization" } };
         }
@@ -550,51 +565,64 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
           return { ok: false, error: { kind: "expired" } };
         }
 
-        const result = await executor.execute<Record<string, unknown>>(
-          `WITH accepted_inv AS (
-            UPDATE membership_organization_invitations
-            SET status = 'accepted', accepted_at = $2
-            WHERE token_hash = $1 AND org_id = $3 AND email_lower = $4 AND status = 'pending' AND revoked_at IS NULL AND accepted_at IS NULL AND expires_at > $2
-            RETURNING id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-          ),
-          new_member AS (
-            INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
-            SELECT $5, org_id, $6, $7, $8, $8
-            FROM accepted_inv
-            RETURNING *
-          ),
-          new_role AS (
-            INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
-            SELECT $9, org_id, $10, $11, role, 'organization', NULL, $12
-            FROM accepted_inv
-            RETURNING *
-          )
-          SELECT
-            row_to_json(ai.*) as invitation,
-            row_to_json(nm.*) as member,
-            row_to_json(nr.*) as role_assignment
-          FROM accepted_inv ai
-          CROSS JOIN new_member nm
-          CROSS JOIN new_role nr`,
-          [
-            input.tokenHash, input.acceptedAt.toISOString(),
-            input.orgId, input.emailLower,
-            input.memberId, input.subjectId, input.subjectType, input.acceptedAt.toISOString(),
-            input.roleAssignmentId, input.subjectId, input.subjectType, input.acceptedAt.toISOString(),
-          ],
+        // chaseid CH3: sequential statements instead of the baseline's
+        // Postgres data-modifying CTE, which D1 cannot parse. The UPDATE's
+        // WHERE clause is the same guard the CTE had, so two racing accepts
+        // still produce one winner; a failed member/role insert reverts the
+        // invitation so it can be accepted again.
+        const accepted = await executor.execute<Record<string, unknown>>(
+          `UPDATE membership_organization_invitations
+           SET status = 'accepted', accepted_at = $2
+           WHERE token_hash = $1 AND org_id = $3 AND email_lower = $4 AND status = 'pending' AND revoked_at IS NULL AND accepted_at IS NULL AND expires_at > $2
+           RETURNING id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at`,
+          [input.tokenHash, input.acceptedAt.toISOString(), input.orgId, input.emailLower],
         );
-        if (result.rowCount === 0) {
+        if (accepted.rowCount === 0) {
           return { ok: false, error: { kind: "not_found" } };
         }
-        const row = result.rows[0]!;
-        return {
-          ok: true,
-          value: {
-            invitation: mapInvitation(parseJsonColumn(row.invitation)),
-            member: mapMember(parseJsonColumn(row.member)),
-            roleAssignment: mapRoleAssignment(parseJsonColumn(row.role_assignment)),
-          },
-        };
+        const invitation = mapInvitation(accepted.rows[0]!);
+
+        let memberWritten = false;
+        try {
+          const memberRows = await executor.execute<Record<string, unknown>>(
+            `INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $5)
+             RETURNING *`,
+            [input.memberId, invitation.orgId, input.subjectId, input.subjectType, input.acceptedAt.toISOString()],
+          );
+          if (memberRows.rowCount === 0) throw new Error("member insert returned no row");
+          memberWritten = true;
+
+          const roleRows = await executor.execute<Record<string, unknown>>(
+            `INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'organization', NULL, $6)
+             RETURNING *`,
+            [input.roleAssignmentId, invitation.orgId, input.subjectId, input.subjectType, invitation.role, input.acceptedAt.toISOString()],
+          );
+          if (roleRows.rowCount === 0) throw new Error("role assignment insert returned no row");
+
+          return {
+            ok: true,
+            value: {
+              invitation,
+              member: mapMember(memberRows.rows[0]!),
+              roleAssignment: mapRoleAssignment(roleRows.rows[0]!),
+            },
+          };
+        } catch (inner: unknown) {
+          try {
+            if (memberWritten) {
+              await executor.execute(`DELETE FROM membership_organization_members WHERE id = $1`, [input.memberId]);
+            }
+            await executor.execute(
+              `UPDATE membership_organization_invitations SET status = 'pending', accepted_at = NULL WHERE id = $1`,
+              [invitation.id],
+            );
+          } catch {
+            // Best-effort compensation; surface the original failure.
+          }
+          throw inner;
+        }
       } catch (err: unknown) {
         if (isUniqueViolation(err)) {
           return { ok: false, error: { kind: "conflict", entity: "organization_member" } };

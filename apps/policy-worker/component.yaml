@@ -52,4 +52,4 @@ spec:
     surface: policy
     runtime: cloudflare
 # ci: trigger full-component verification (orun v2.12.0 upgrade — PR #183)
-# orun: redeploy 04-workers 20260924T003405Z
+# orun: redeploy MW1 — packages/db (trap-16 D1 fix, ledger context), packages/policy-engine (ledger.* actions), packages/contracts (ledger-worker notifications caller)

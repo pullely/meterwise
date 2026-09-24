@@ -25,7 +25,7 @@
     "GOOGLE_OAUTH_CLIENT_ID": "",
     "OAUTH_REDIRECT_BASE_URL": "http://localhost:8787",
     "OAUTH_ALLOWED_CONSOLE_ORIGINS": "http://localhost:3000",
-    "SOLO_MODE": "true"
+    "SOLO_MODE": "false"
   },
   "env": {
     "dev": {
@@ -36,7 +36,7 @@
         "GOOGLE_OAUTH_CLIENT_ID": "",
         "OAUTH_REDIRECT_BASE_URL": "",
         "OAUTH_ALLOWED_CONSOLE_ORIGINS": "https://meterwise-web-console-next-dev.nexo-7be.workers.dev",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       }
     },
     "stage": {
@@ -47,7 +47,7 @@
         "GOOGLE_OAUTH_CLIENT_ID": "441163126775-7fabhvpbl9tsga921rklpdlde7mduq34.apps.googleusercontent.com",
         "OAUTH_REDIRECT_BASE_URL": "https://meterwise-api-edge-stage.nexo-7be.workers.dev",
         "OAUTH_ALLOWED_CONSOLE_ORIGINS": "https://stage.meterwise.app,https://meterwise-web-console-next-stage.nexo-7be.workers.dev",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "d1_databases": [
         {
@@ -79,7 +79,7 @@
         "GOOGLE_OAUTH_CLIENT_ID": "441163126775-7fabhvpbl9tsga921rklpdlde7mduq34.apps.googleusercontent.com",
         "OAUTH_REDIRECT_BASE_URL": "https://meterwise-api-edge-prod.nexo-7be.workers.dev",
         "OAUTH_ALLOWED_CONSOLE_ORIGINS": "https://prod.meterwise.app,https://meterwise-web-console-next-prod.nexo-7be.workers.dev",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "d1_databases": [
         {

@@ -69,4 +69,4 @@ spec:
 # ci: cycle-break pass 1 — deploy cluster with feedback edges stripped (20260622T135810Z)
 # ci: cycle-break pass 1 — deploy cluster with feedback edges stripped (20260622T135810Z)
 # ci: re-trigger deploy (verify orun-secrets brokered CLOUDFLARE_API_TOKEN resolve in worker deploy lane, 20260727T153639Z)
-# orun: redeploy 04-workers 20260924T003405Z
+# orun: redeploy MW1 — packages/db (trap-16 D1 fix, ledger context), packages/policy-engine (ledger.* actions), packages/contracts (ledger-worker notifications caller)

@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
+  CircleDollarSign,
+  Tags,
   Boxes,
   KeyRound,
   Settings,
@@ -34,6 +36,8 @@ import { SidebarOrgSwitcher } from "./sidebar-org-switcher";
 import { SidebarFind } from "./sidebar-find";
 
 const ICONS: Record<string, LucideIcon> = {
+  CircleDollarSign,
+  Tags,
   Building2,
   FolderKanban,
   Boxes,

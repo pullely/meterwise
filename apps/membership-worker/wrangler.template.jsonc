@@ -11,17 +11,16 @@
   "vars": {
     "ENVIRONMENT": "local",
     "DEBUG_DELIVERY": "true",
-    // M0 / Solo profile (Meterwise ships single-user): caps each account at its one
-    // personal organization. Set "false" to restore the full multi-tenant
-    // baseline. Must match api-edge/identity-worker. See specs/profiles/solo-m0.md.
-    "SOLO_MODE": "true"
+    // Solo profile OFF: a product team shares one organization, and an
+    // agency may run several. Must match api-edge/identity-worker/membership-worker.
+    "SOLO_MODE": "false"
   },
   "env": {
     "dev": {
       "vars": {
         "ENVIRONMENT": "dev",
         "DEBUG_DELIVERY": "true",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       }
     },
     "stage": {
@@ -29,7 +28,7 @@
       "vars": {
         "ENVIRONMENT": "stage",
         "DEBUG_DELIVERY": "true",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "d1_databases": [
         {
@@ -58,7 +57,7 @@
       "vars": {
         "ENVIRONMENT": "prod",
         "DEBUG_DELIVERY": "false",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "d1_databases": [
         {

@@ -10,6 +10,9 @@ export const qk = {
   orgs: () => ["orgs"] as const,
   profile: () => ["profile"] as const,
   projects: (orgId: string) => ["projects", orgId] as const,
+  llmCosts: (orgId: string, by: string, from: string, to: string) => ["llm-costs", orgId, by, from, to] as const,
+  llmEvents: (orgId: string) => ["llm-events", orgId] as const,
+  llmPrices: (orgId: string, version: string) => ["llm-prices", orgId, version] as const,
   environments: (orgId: string, projectId: string) =>
     ["environments", orgId, projectId] as const,
   members: (orgId: string) => ["members", orgId] as const,

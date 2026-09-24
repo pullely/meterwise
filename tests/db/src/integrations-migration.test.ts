@@ -26,10 +26,17 @@ describe("Integrations Migration Verification", () => {
     );
   });
 
-  it("orders the integrations migrations at the manifest tail", () => {
+  // Was "…at the manifest tail", pinned to ids.length - 2 / - 1: true only until
+  // the next migration landed, and 200_ledger_core is that migration. What the
+  // integrations context needs is that its two migrations stay adjacent and in
+  // order after their predecessor — which is what this asserts instead.
+  it("orders the integrations migrations adjacently, after their predecessors", () => {
     const ids = manifest.migrations.map((m) => m.id);
-    expect(ids.indexOf("180_integrations_foundation")).toBe(ids.length - 2);
-    expect(ids.indexOf("190_integrations_delivery_attribution")).toBe(ids.length - 1);
+    const foundation = ids.indexOf("180_integrations_foundation");
+    const attribution = ids.indexOf("190_integrations_delivery_attribution");
+    expect(foundation).toBeGreaterThan(-1);
+    expect(attribution).toBe(foundation + 1);
+    expect(ids.indexOf("170_membership_org_parent")).toBe(foundation - 1);
   });
 
   it("manifest checksums match the on-disk up.sql files", () => {

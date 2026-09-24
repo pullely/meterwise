@@ -298,6 +298,10 @@ export const NOTIFICATIONS_INTERNAL_ACTOR_VALUES = [
   // The public edge forwards end-user preference reads/updates over the
   // service binding with the subject pinned to the resolved session actor.
   "api-edge",
+  // Meterwise: ledger-worker emails budget and anomaly alerts (MW2).
+  // Listed from MW1 so MW2 adds only templates. Without this entry
+  // notifications-worker refuses its calls with 403.
+  "ledger-worker",
 ] as const;
 
 export type NotificationsInternalActor =

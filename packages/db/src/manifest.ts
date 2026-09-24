@@ -183,5 +183,14 @@ export const manifest: MigrationManifest = {
       description:
         "Connection pointer on the inbound-delivery inbox (nullable connection_id + partial index) — lets the per-connection delivery log scope precisely; attributed by the IG2 cron drain",
     },
+    {
+      id: "200_ledger_core",
+      context: "ledger",
+      path: "200_ledger_core/up.sql",
+      checksum:
+        "8e26ab0ae19f3dafe54661f4568eb3a2e08fd418555635460dec68350e1e81d2",
+      description:
+        "Usage ledger foundation (MW1) — the dated, versioned, cited model price table (version 2026-09-24: OpenAI and Anthropic base rates) and the per-org ledger of reported LLM calls, unique per (org_id, event_key), each priced with the version in effect when it happened",
+    },
   ],
 };

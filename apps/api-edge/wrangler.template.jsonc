@@ -11,9 +11,9 @@
   "vars": {
     "ENVIRONMENT": "local",
     "CONSOLE_CUSTOM_DOMAIN": "",
-    // M0 / Solo profile (Meterwise ships single-user). Set "false" to restore the
-    // full multi-tenant baseline. See specs/profiles/solo-m0.md.
-    "SOLO_MODE": "true"
+    // Solo profile OFF: a product team shares one organization, and an
+    // agency may run several. Must match api-edge/identity-worker/membership-worker.
+    "SOLO_MODE": "false"
   },
   "durable_objects": {
     "bindings": [
@@ -28,7 +28,7 @@
       "vars": {
         "ENVIRONMENT": "dev",
         "CONSOLE_CUSTOM_DOMAIN": "",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "durable_objects": {
         "bindings": [
@@ -43,7 +43,7 @@
       "vars": {
         "ENVIRONMENT": "stage",
         "CONSOLE_CUSTOM_DOMAIN": "stage.meterwise.app",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "d1_databases": [
         {
@@ -70,6 +70,10 @@
         {
           "binding": "PROJECTS_WORKER",
           "service": "meterwise-projects-worker-stage"
+        },
+        {
+          "binding": "LEDGER_WORKER",
+          "service": "meterwise-ledger-worker-stage"
         },
         {
           "binding": "EVENTS_WORKER",
@@ -113,7 +117,7 @@
       "vars": {
         "ENVIRONMENT": "prod",
         "CONSOLE_CUSTOM_DOMAIN": "prod.meterwise.app",
-        "SOLO_MODE": "true"
+        "SOLO_MODE": "false"
       },
       "d1_databases": [
         {
@@ -140,6 +144,10 @@
         {
           "binding": "PROJECTS_WORKER",
           "service": "meterwise-projects-worker-prod"
+        },
+        {
+          "binding": "LEDGER_WORKER",
+          "service": "meterwise-ledger-worker-prod"
         },
         {
           "binding": "EVENTS_WORKER",

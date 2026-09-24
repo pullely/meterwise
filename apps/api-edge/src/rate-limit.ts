@@ -57,7 +57,8 @@ export type RouteFamily =
   | "billing"
   | "audit"
   | "notifications"
-  | "integrations";
+  | "integrations"
+  | "ledger";
 
 interface BucketLimits {
   /** Bucket capacity (max tokens). */
@@ -91,6 +92,13 @@ const LIMITS: Record<RouteFamily, FamilyConfig> = {
   project: {
     identity: { limit: 60, windowSec: 60 },
     org: { limit: 300, windowSec: 60 },
+  },
+  // Meterwise ingest: a customer's SDK reports every LLM call (batches of up
+  // to 100 events), so the per-key bucket is 10× the CRUD default. 600/min
+  // per key × 100 events = 60k events/min before a 429 (design §5).
+  ledger: {
+    identity: { limit: 600, windowSec: 60 },
+    org: { limit: 1200, windowSec: 60 },
   },
   config: {
     identity: { limit: 60, windowSec: 60 },

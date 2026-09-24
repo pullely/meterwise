@@ -1,0 +1,48 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-2
+spec:
+  goal: A customer's SDK reports each LLM call with a baseline API key, idempotently, and the org reads cost per tenant, feature, model and user priced from a dated, cited, versioned price table.
+  # Component refs, fully qualified (runbook trap 15). identity-worker,
+  # membership-worker, api-edge and web-console-next carry the SOLO_MODE switch
+  # (Solo goes off). Every other worker is here for runbook trap 17: this task
+  # changes packages/db (the trap-16 D1 fix and the ledger context),
+  # packages/policy-engine (ledger.* actions) and packages/contracts (the
+  # notifications allow-list), and a worker only redeploys when its own
+  # component.yaml changes.
+  affects:
+    - default/meterwise/db
+    - default/meterwise/db-tests
+    - default/meterwise/db-migrate
+    - default/meterwise/contracts
+    - default/meterwise/contracts-tests
+    - default/meterwise/sdk
+    - default/meterwise/policy-engine
+    - default/meterwise/policy-engine-tests
+    - default/meterwise/ledger-worker
+    - default/meterwise/ledger-worker-tests
+    - default/meterwise/api-edge
+    - default/meterwise/api-edge-tests
+    - default/meterwise/events-worker
+    - default/meterwise/notifications-worker
+    - default/meterwise/identity-worker
+    - default/meterwise/membership-worker
+    - default/meterwise/web-console-next
+    - default/meterwise/web-console-next-tests
+    - default/meterwise/admin-worker
+    - default/meterwise/billing-worker
+    - default/meterwise/config-worker
+    - default/meterwise/integrations-worker
+    - default/meterwise/metering-worker
+    - default/meterwise/policy-worker
+    - default/meterwise/projects-worker
+    - default/meterwise/webhooks-worker
+  doneWhen:
+    - the trap-16 D1 fix is applied, so audited writes and organization create work on D1
+    - migration 200_ledger_core with the cited 2026-09-24 price table replays twice green on node:sqlite and is applied on stage and prod
+    - on stage a builder API key ingests a batch (200, all accepted); a retried event is a duplicate and no total changes
+    - on stage cost per tenant, feature and model equals a hand computation from the price table, to the nano-dollar
+    - no key or a revoked key gets 401; a signed-in non-member and another org's key get 404
+    - tests/ledger-worker covers pricing, idempotency under a concurrent race, aggregation and the tenant boundary on real SQLite, green in CI
+  gates: []
