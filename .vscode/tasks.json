@@ -1,0 +1,11 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Verify Task",
+            "type": "shell",
+            "command": "STATE_FILE=\"${STATE_FILE:-ai/state.json}\"; ORCHESTRATOR_MODEL=\"${ORCHESTRATOR_MODEL:-gpt-5.5}\"; echo \"=== verify-orchestrator ===\" && hermes chat --yolo --model poolside/laguna-m.1:free --provider openrouter -q \"Act as agents/orchestrator.md\" && sleep 30 && TASK_PROMPT=\"$(jq -r '.task_agent // empty' \"$STATE_FILE\")\" && test -n \"$TASK_PROMPT\" || { echo \"No task_agent found in $STATE_FILE\"; exit 1; }; echo \"=== verify-tasker ===\" && hermes chat --yolo --model deepseek/deepseek-v4-flash:free --provider nous -q \"$TASK_PROMPT\" && sleep 30 && OPEN_PR_COUNT=\"$(gh pr list --state open --limit 100 --json number --jq 'length')\" && if [ \"$OPEN_PR_COUNT\" -gt 0 ]; then echo \"Skipping new-task-orchestrator because $OPEN_PR_COUNT open PR(s) exist.\"; gh pr list --state open; else echo \"=== new-task-orchestrator ===\"; codex exec --skip-git-repo-check --model \"$ORCHESTRATOR_MODEL\" --dangerously-bypass-approvals-and-sandbox \"Act as agents/orchestrator.md\"; fi",
+            "inAgents": true
+        }
+    ]
+}

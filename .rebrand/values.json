@@ -1,0 +1,10 @@
+{
+  "reponame": "meterwise",
+  "productname": "Meterwise",
+  "productdomain": "meterwise.app",
+  "subdomain": "nexo-7be",
+  "orunWorkspace": "ws_EVPG35GG",
+  "githuborg": "pullely",
+  "epicSlug": "infra-baselining",
+  "domain": false
+}

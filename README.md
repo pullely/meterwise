@@ -1,0 +1,177 @@
+# meterwise
+
+Reusable **Cloudflare-only** multi-tenant SaaS starter, built as an
+[Orun](https://opencode.ai/docs) component-native desired-state repo. Identity,
+organizations, projects, RBAC, audit, metering, billing, webhooks, and
+notifications ship as separate bounded-context Cloudflare Workers behind a single
+public edge API, with a Next.js console on Workers + Static Assets — and
+Cloudflare D1 as the database, so Cloudflare is the only provider in the loop.
+
+## Live deployment
+
+<!-- 08-docs:begin -->
+_Not yet recorded — run [`08-docs`](docs/phases/08-docs.md) after
+`06-console` to fill this section from verified live state
+([manifest](ai/context/deployment.md) · [operating contract](ai/context/operations.md))._
+<!-- 08-docs:end -->
+
+## Status
+
+- **Runtime is live, per environment, through Orun.** The edge API, the
+  bounded-context Workers, and the console deploy to `stage` and `prod` via
+  `orun run` (no direct Wrangler/Terraform/pnpm in CI).
+- **Data plane is provisioned by Terraform:** a Cloudflare D1 database per
+  environment and the `api-edge` idempotency KV namespace. Terraform state
+  lives in the Orun Cloud HTTP state backend; provider credentials are
+  BROKERED per-run from the workspace's Cloudflare connection (no AWS, no
+  long-lived secrets at rest).
+- **Database migrations** run through the `db-migrate` component against D1's
+  REST API (plan on PRs, apply on merge to `main`).
+- **Billing** is live end-to-end via the Polar adapter (embedded checkout,
+  plan changes, multi-org fan-out).
+- **Known credential-blocked tails**: full production OAuth/magic-link auth
+  and Stripe require human-supplied credentials. The notifications email
+  provider is Cloudflare Email Service (`cloudflare-email`, no API key — the
+  `send_email` binding is the credential); it needs one-time account setup:
+  Workers Paid plan and the sending domain verified in Email Service
+  (DKIM/SPF).
+- The `dev` environment is verify-only (no provisioned database by design).
+
+## Why Cloudflare-only
+
+One provider means one consent, one token, and one place to look when
+something breaks. The cost is D1's shape, and this baseline is explicit about
+it rather than quiet:
+
+- **No interactive transactions.** D1 offers atomic `batch()` for a statement
+  list decided up front, not a transaction held open across reads and writes.
+  `executor.transaction(...)` therefore runs its statements in order with no
+  rollback; every call site is a place a reviewer should look first. Prefer a
+  single statement with `RETURNING`, or an upsert with `ON CONFLICT`, where
+  all-or-nothing actually matters.
+- **SQLite types.** Timestamps are ISO-8601 text, JSON documents are text,
+  booleans are 0/1. `@saas/db/json` owns the decoding so row mappers never
+  guess.
+- **No schemas.** The bounded-context boundary is a table-name prefix
+  (`identity_users`, `membership_organizations`) enforced by the
+  repositories — which is where it was actually enforced under Postgres too.
+
+## Instantiating products
+
+This baseline births new products from one artifact — `repo-blueprint.yaml`,
+run by `orun new` (**[BOOTSTRAP.md](BOOTSTRAP.md)** →
+[docs/phases/](docs/phases/README.md)). It declares nine idempotent phases —
+scaffold, foundation, infrastructure, workers, workers-restore, edge,
+console, optional domain, docs — each landing a verified slice, each
+selectable with `--phase <name>`. Products receive **product-only content**
+(source, infra, CI, their own docs); none of this baseline's machinery
+ships, and a product's docs speak only about the product.
+
+## Prerequisites
+
+- Node.js >= 20 (CI and components run on Node 22)
+- pnpm >= 10 (`npm install -g pnpm`)
+- (Optional, for local Orun validation) the `kiox` CLI on your `PATH`. `kiox`
+  pins the Orun provider declared in `kiox.yaml`; invoke Orun as
+  `kiox -- orun ...`.
+
+## Getting Started
+
+```bash
+# Install all workspace dependencies
+pnpm install
+
+# Type-check / lint / test / build across the workspace (Turborepo)
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+```
+
+## Workspace Layout
+
+```
+apps/api-edge             Public HTTP entry point (Cloudflare Worker)
+apps/identity-worker      Users, sessions, API keys, OAuth
+apps/membership-worker    Organizations, members, invitations, role assignments
+apps/projects-worker      Projects and environments
+apps/policy-worker        Deny-by-default RBAC evaluation
+apps/events-worker        Domain events, audit log, observability
+apps/config-worker        Settings, feature flags, secret metadata
+apps/metering-worker      Usage ingestion, quotas, rollups
+apps/billing-worker       Plans, subscriptions, invoices (Polar adapter)
+apps/notifications-worker Email delivery and preferences
+apps/webhooks-worker      Outgoing webhooks: signing, delivery, replay
+apps/admin-worker         Audited admin/support workflows
+apps/web-console-next     Next.js console (Cloudflare Workers + Static Assets)
+
+packages/contracts        Shared API, tenancy, event, and error types + validators
+packages/policy-engine    RBAC evaluation logic
+packages/db               D1 executor, migration harness, manifest, and runner
+packages/sdk              TypeScript SDK (contract-driven)
+packages/cli              `meterwise` CLI
+packages/notifications-client  Notifications client
+packages/shared           Generic helpers (IDs, errors) — no domain logic
+packages/testing          Test fixtures and utilities
+
+infra/terraform/cloudflare-d1      D1 database provisioning (stage/prod)
+infra/terraform/cloudflare-kv      api-edge idempotency KV namespace
+infra/terraform/cloudflare-domain  Zone adoption + console custom domain
+infra/db-migrate                   Database migration runner component
+
+tooling/tsconfig          Shared TypeScript configurations
+tooling/eslint            Shared ESLint configuration
+tooling/wire              Deploy-time wrangler config renderer
+tests/*                   Per-component contract and verifier test suites
+```
+
+Execution contracts (the composition stack) are not vendored here. They are
+consumed from the published catalog at
+`oci://ghcr.io/sourceplane/stack-tectonic`, pinned to an explicit version in
+`intent.yaml`. Composition changes are made in
+[sourceplane/stack-tectonic](https://github.com/sourceplane/stack-tectonic),
+released there, and adopted here by bumping the pinned tag.
+
+## CI
+
+CI is powered by [Orun](https://opencode.ai/docs) with the local Stack Tectonic
+composition stack. `.github/workflows/ci.yml` calls only `orun plan` and
+`orun run` — no direct `pnpm`, `turbo`, Wrangler, or Terraform commands run in
+GitHub Actions. The Orun runtime is pinned in `kiox.yaml` (resolved digest in
+`kiox.lock`); the workflow's `orun-action` `version:` matches that pin.
+
+### Local Orun Verification
+
+```bash
+kiox -- orun compositions lock --intent intent.yaml
+kiox -- orun validate --intent intent.yaml
+kiox -- orun plan --changed --intent intent.yaml --output plan.json
+kiox -- orun run --plan plan.json --dry-run --runner github-actions
+```
+
+Use `--changed` for PR-scoped checks; use a full plan when validating
+environment promotion or cross-component dependencies (`--view dag`).
+
+## Infrastructure
+
+Terraform provisions the D1 database and the `api-edge` KV namespace for
+`stage` and `prod`. Both roots carry `adopt.tf`, which imports an existing
+resource at plan time instead of colliding with it — so a re-bootstrap over a
+half-torn-down attempt heals rather than fails. Credentials are brokered per
+run from the workspace's Cloudflare connection and Terraform state lives on
+the platform; nothing provider-shaped is stored in this repo or in GitHub.
+See `specs/core/access-and-infra.md` for the access model.
+
+## Adding a New Component
+
+1. Create the directory under `apps/`, `packages/`, `tests/`, or `infra/`.
+2. Add a `component.yaml` with the appropriate `spec.type` — one of
+   `cloudflare-worker-turbo`, `cloudflare-workers-assets-turbo`, `terraform`,
+   `db-migrate`, or `turbo-package` — plus `subscribe.environments` and the
+   typed `parameters` the composition schema requires.
+3. Orun discovers it automatically on the next plan (`discovery.roots` covers
+   `apps/`, `infra/`, `packages/`, `tests/`). Validate with
+   `kiox -- orun validate --intent intent.yaml`.
+
+See `specs/core/orun-golden-path.md` for the intent/component/composition layer
+rules before changing CI, infra, or `intent.yaml`.
