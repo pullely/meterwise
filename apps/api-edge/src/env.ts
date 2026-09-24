@@ -3,6 +3,7 @@ export interface Env {
   IDENTITY_WORKER?: Fetcher;
   MEMBERSHIP_WORKER?: Fetcher;
   PROJECTS_WORKER?: Fetcher;
+  LEDGER_WORKER?: Fetcher;
   EVENTS_WORKER?: Fetcher;
   CONFIG_WORKER?: Fetcher;
   WEBHOOKS_WORKER?: Fetcher;

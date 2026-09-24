@@ -89,11 +89,6 @@ const SAMPLE_AUDIT_ROW_DATA = {
 
 const SAMPLE_AUDIT_ROW = { ...SAMPLE_AUDIT_ROW_DATA };
 
-const SAMPLE_EVENT_WITH_AUDIT_ROW = {
-  _event: SAMPLE_EVENT_ROW,
-  _audit: SAMPLE_AUDIT_ROW_DATA,
-};
-
 describe("events repository: appendEvent", () => {
   it("inserts an event and returns the mapped entity", async () => {
     const { executor, queries } = createFakeExecutor({ rows: [SAMPLE_EVENT_ROW] });
@@ -234,9 +229,9 @@ describe("events repository: appendEvent", () => {
 });
 
 describe("events repository: appendEventWithAudit", () => {
-  it("inserts event and audit in one SQL statement", async () => {
+  it("inserts the event, then its audit entry, in two D1-compatible statements", async () => {
     const { executor, queries } = createFakeExecutor({
-      rows: [SAMPLE_EVENT_WITH_AUDIT_ROW],
+      callResponses: [{ rows: [SAMPLE_EVENT_ROW] }, { rows: [SAMPLE_AUDIT_ROW] }],
     });
     const repo = createEventsRepository(executor);
 
@@ -272,10 +267,16 @@ describe("events repository: appendEventWithAudit", () => {
       expect(result.value.audit.id).toBe("aud-001");
       expect(result.value.audit.eventId).toBe("evt-001");
     }
-    // Only one SQL call (CTE)
-    expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("WITH inserted_event AS");
-    expect(queries[0]!.text).toContain("inserted_audit AS");
+    // Two plain INSERT … RETURNING statements: SQLite (D1) cannot run a
+    // data-modifying CTE or row_to_json.
+    expect(queries).toHaveLength(2);
+    expect(queries[0]!.text).toContain("INSERT INTO events_event_log");
+    expect(queries[1]!.text).toContain("INSERT INTO events_audit_entries");
+    for (const q of queries) {
+      expect(q.text).not.toContain("WITH ");
+      expect(q.text).not.toContain("row_to_json");
+    }
+    expect(queries[1]!.params[1]).toBe("evt-001");
   });
 
   it("returns conflict when event already exists (no event row returned)", async () => {

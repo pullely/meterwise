@@ -33,7 +33,7 @@ Meterwise instead.
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | In progress (MW0 ✅, MW1 in review) |
 | Cluster | **MW** (MW0–MW3) |
 | Owner(s) | `apps/ledger-worker` (MW1: the price table, event ingest, cost reads; MW2: budgets, the pre-flight check, the anomaly cron) · `apps/proxy-worker` (MW3: the streaming OpenAI-compatible proxy) · `apps/api-edge` (the `ledger` facade and its rate-limit family) · `packages/db` (migrations `200`–`210`) · `packages/contracts` + `packages/sdk` (the wire and the reporting SDK) · `apps/notifications-worker` (MW2 templates) · `apps/web-console-next` (the surface) |
 | Builds on | `cirrus baseline-v12`: organizations and members, **API keys and service principals** (identity-worker) as the SDK's credential, **api-edge's per-org / per-identity rate limiter** in front of ingest, the policy engine, the audit trail, `notifications-worker` for email, cron triggers, and (MW2) the metering and quota context for the plan's tracked-spend allowance |

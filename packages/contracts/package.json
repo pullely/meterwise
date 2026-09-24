@@ -13,6 +13,7 @@
     "./membership": "./src/membership.ts",
     "./policy": "./src/policy.ts",
     "./projects": "./src/projects.ts",
+    "./ledger": "./src/ledger.ts",
     "./events": "./src/events.ts",
     "./security-events": "./src/security-events.ts",
     "./api-keys": "./src/api-keys.ts",

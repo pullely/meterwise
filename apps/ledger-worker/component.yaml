@@ -1,0 +1,71 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: ledger-worker
+  description: Cloudflare Worker for Meterwise's usage ledger — the versioned model price table, idempotent LLM-event ingest authenticated by baseline API keys, and cost per tenant, feature, model and user (from MW2, budgets, the pre-flight check and the anomaly cron)
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: starter-runtime
+  path: apps/ledger-worker
+  dependsOn:
+    # Migrations first: a deploy that reads a column its own migration adds
+    # must not go live before db-migrate has applied it.
+    - component: db-migrate
+    - component: membership-worker
+    - component: policy-worker
+  # BF6 wiring documents from orun secrets (SEC-JOB): lease-published by
+  # the infra components; wire-live renders the wrangler template from
+  # these instead of Secrets Manager documents.
+  secretEnv:
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://ws_EVPG35GG/meterwise/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://ws_EVPG35GG/meterwise/prod/WIRING_CLOUDFLARE_D1"
+
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    # BF6b: deploy-time wiring — wrangler.jsonc is rendered, never committed.
+    # Verify lanes render from wiring.fixture.json (offline); deploy lanes
+    # resolve real IDs from the Secrets Manager wiring manifest (BF5).
+    orgName: sourceplane
+    owner: sourceplane
+    repo: meterwise
+
+    turboFilter: "@saas/ledger-worker"
+    wranglerConfig: wrangler.jsonc
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: "cloudflare-d1"
+    wiringEnvs: "stage,prod"
+    wiringFixture: wiring.fixture.json
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/ledger-worker
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@saas/ledger-worker
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'No migrations configured.'"
+    smokeCommand: "echo 'No smoke test configured.'"
+  labels:
+    team: platform
+    layer: runtime
+    surface: ledger
+    runtime: cloudflare

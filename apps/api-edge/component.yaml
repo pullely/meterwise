@@ -13,6 +13,7 @@ spec:
     - component: cloudflare-d1
     - component: cloudflare-kv
     - component: projects-worker
+    - component: ledger-worker
     - component: events-worker
     - component: config-worker
     - component: webhooks-worker
@@ -86,4 +87,4 @@ spec:
     runtime: cloudflare
 # ci: re-trigger deploy (batch C — integrations + api-edge gateway, 20260622T141448Z)
 # ci: re-trigger deploy (batch C — integrations + api-edge gateway, 20260622T141448Z)
-# orun: redeploy 05-edge 20260924T011005Z
+# orun: redeploy MW1 — packages/db (trap-16 D1 fix, ledger context), packages/policy-engine (ledger.* actions), packages/contracts (ledger-worker notifications caller)

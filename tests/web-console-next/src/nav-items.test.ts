@@ -65,7 +65,7 @@ describe("buildNavSections under the Solo (M0) profile", () => {
     const org = buildNavSections({ orgSlug: "acme" }, true).find((s) => s.id === "org")!;
     expect(org.label).toBe("Account");
     const hrefs = org.links.map((l) => l.href);
-    expect(hrefs).toEqual(["/orgs/acme/settings"]); // only Settings survives
+    expect(hrefs).toEqual(["/orgs/acme/costs", "/orgs/acme/prices", "/orgs/acme/settings"]); // the costs and the price table are the product; of the plumbing only Settings survives
     expect(hrefs).not.toContain("/orgs/acme/projects");
     expect(hrefs).not.toContain("/orgs/acme/usage");
   });
@@ -79,6 +79,8 @@ describe("buildNavSections under the Solo (M0) profile", () => {
     const org = buildNavSections({ orgSlug: "acme" }, false).find((s) => s.id === "org")!;
     expect(org.label).toBe("Org · acme");
     expect(org.links.map((l) => l.href)).toEqual([
+      "/orgs/acme/costs",
+      "/orgs/acme/prices",
       "/orgs/acme/projects",
       "/orgs/acme/usage",
       "/orgs/acme/settings",

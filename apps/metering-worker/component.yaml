@@ -67,4 +67,4 @@ spec:
     surface: metering
     runtime: cloudflare
 # ci: re-trigger deploy (batch B — membership-dependents, 20260622T140838Z)
-# orun: redeploy 04-workers 20260924T003405Z
+# orun: redeploy MW1 — packages/db (trap-16 D1 fix, ledger context), packages/policy-engine (ledger.* actions), packages/contracts (ledger-worker notifications caller)

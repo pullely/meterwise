@@ -289,27 +289,32 @@ describe("MembershipRepository", () => {
   });
 
   describe("bootstrapOrganization", () => {
-    it("creates org, member, and role assignment atomically in a single CTE statement", async () => {
+    const INPUT = {
+      org: { id: ORG1, name: "Acme Corp", slug: "acme-corp", slugLower: "acme-corp", createdAt: NOW },
+      member: { id: "mem-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", createdAt: NOW },
+      roleAssignment: { id: "ra-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", role: "owner", scopeKind: "organization", createdAt: NOW },
+    } as const;
+
+    it("creates org, member and role assignment in three D1-compatible statements", async () => {
       const { executor, queries } = createFakeExecutor({
-        rows: [{
-          org: SAMPLE_ORG_ROW,
-          member: SAMPLE_MEMBER_ROW,
-          role_assignment: SAMPLE_ROLE_ASSIGNMENT_ROW,
-        }],
+        callResponses: [
+          { rows: [SAMPLE_ORG_ROW] },
+          { rows: [SAMPLE_MEMBER_ROW] },
+          { rows: [SAMPLE_ROLE_ASSIGNMENT_ROW] },
+        ],
       });
       const repo = createMembershipRepository(executor);
 
-      const result = await repo.bootstrapOrganization({
-        org: { id: ORG1, name: "Acme Corp", slug: "acme-corp", slugLower: "acme-corp", createdAt: NOW },
-        member: { id: "mem-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", createdAt: NOW },
-        roleAssignment: { id: "ra-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", role: "owner", scopeKind: "organization", createdAt: NOW },
-      });
+      const result = await repo.bootstrapOrganization({ ...INPUT });
 
-      expect(queries).toHaveLength(1);
-      expect(queries[0]!.text).toContain("WITH new_org AS");
-      expect(queries[0]!.text).toContain("new_member AS");
-      expect(queries[0]!.text).toContain("new_role AS");
-      expect(queries[0]!.text).toContain("CROSS JOIN");
+      expect(queries).toHaveLength(3);
+      expect(queries[0]!.text).toContain("INSERT INTO membership_organizations");
+      expect(queries[1]!.text).toContain("INSERT INTO membership_organization_members");
+      expect(queries[2]!.text).toContain("INSERT INTO membership_role_assignments");
+      for (const q of queries) {
+        expect(q.text).not.toContain("WITH ");
+        expect(q.text).not.toContain("row_to_json");
+      }
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.org.id).toBe(ORG1);
@@ -318,62 +323,50 @@ describe("MembershipRepository", () => {
       }
     });
 
-    it("uses parameterized query with all 18 parameters", async () => {
+    it("passes parent_org_id, null for a standalone org", async () => {
       const { executor, queries } = createFakeExecutor({
-        rows: [{
-          org: SAMPLE_ORG_ROW,
-          member: SAMPLE_MEMBER_ROW,
-          role_assignment: SAMPLE_ROLE_ASSIGNMENT_ROW,
-        }],
+        callResponses: [
+          { rows: [SAMPLE_ORG_ROW] },
+          { rows: [SAMPLE_MEMBER_ROW] },
+          { rows: [SAMPLE_ROLE_ASSIGNMENT_ROW] },
+        ],
       });
       const repo = createMembershipRepository(executor);
 
-      await repo.bootstrapOrganization({
-        org: { id: ORG1, name: "Acme Corp", slug: "acme-corp", slugLower: "acme-corp", createdAt: NOW },
-        member: { id: "mem-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", createdAt: NOW },
-        roleAssignment: { id: "ra-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", role: "owner", scopeKind: "organization", createdAt: NOW },
-      });
+      await repo.bootstrapOrganization({ ...INPUT });
 
-      expect(queries[0]!.text).toContain("$1");
-      expect(queries[0]!.text).toContain("$18");
-      // $19 = parent_org_id (MO3); standalone bootstrap passes null.
       expect(queries[0]!.text).toContain("parent_org_id");
-      expect(queries[0]!.params.length).toBe(19);
-      expect(queries[0]!.params[18]).toBeNull();
+      expect(queries[0]!.params).toEqual([ORG1, "Acme Corp", "acme-corp", "acme-corp", null, NOW.toISOString()]);
     });
 
     it("returns conflict if organization already exists", async () => {
-      const { executor } = createFakeExecutor({ rows: [], rowCount: 0 });
+      const { executor, queries } = createFakeExecutor({ rows: [], rowCount: 0 });
       const repo = createMembershipRepository(executor);
 
-      const result = await repo.bootstrapOrganization({
-        org: { id: ORG1, name: "Acme Corp", slug: "acme-corp", slugLower: "acme-corp", createdAt: NOW },
-        member: { id: "mem-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", createdAt: NOW },
-        roleAssignment: { id: "ra-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", role: "owner", scopeKind: "organization", createdAt: NOW },
-      });
+      const result = await repo.bootstrapOrganization({ ...INPUT });
 
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.kind).toBe("conflict");
+      expect(queries).toHaveLength(1);
     });
 
-    it("all-or-nothing: member and role depend on org via CTE chain", async () => {
+    it("compensates: a failed role insert removes the member and the org it wrote", async () => {
       const { executor, queries } = createFakeExecutor({
-        rows: [{
-          org: SAMPLE_ORG_ROW,
-          member: SAMPLE_MEMBER_ROW,
-          role_assignment: SAMPLE_ROLE_ASSIGNMENT_ROW,
-        }],
+        callResponses: [
+          { rows: [SAMPLE_ORG_ROW] },
+          { rows: [SAMPLE_MEMBER_ROW] },
+          { error: new Error("boom") },
+          { rows: [] },
+          { rows: [] },
+        ],
       });
       const repo = createMembershipRepository(executor);
 
-      await repo.bootstrapOrganization({
-        org: { id: ORG1, name: "Acme Corp", slug: "acme-corp", slugLower: "acme-corp", createdAt: NOW },
-        member: { id: "mem-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", createdAt: NOW },
-        roleAssignment: { id: "ra-001", orgId: ORG1, subjectId: "usr-001", subjectType: "user", role: "owner", scopeKind: "organization", createdAt: NOW },
-      });
+      const result = await repo.bootstrapOrganization({ ...INPUT });
 
-      expect(queries[0]!.text).toContain("FROM new_org");
-      expect(queries[0]!.text).toContain("FROM new_member");
+      expect(result.ok).toBe(false);
+      expect(queries[3]!.text).toContain("DELETE FROM membership_organization_members");
+      expect(queries[4]!.text).toContain("DELETE FROM membership_organizations");
     });
   });
 
@@ -740,11 +733,13 @@ describe("MembershipRepository", () => {
   });
 
   describe("acceptInvitation", () => {
-    it("validates invitation state and creates member + role assignment atomically", async () => {
+    it("validates invitation state, then accepts and creates member + role assignment", async () => {
       const { executor, queries } = createFakeExecutor({
         callResponses: [
           { rows: [SAMPLE_INVITATION_ROW], rowCount: 1 },
-          { rows: [{ invitation: { ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }, member: SAMPLE_MEMBER_ROW, role_assignment: SAMPLE_ROLE_ASSIGNMENT_ROW }], rowCount: 1 },
+          { rows: [{ ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }], rowCount: 1 },
+          { rows: [SAMPLE_MEMBER_ROW], rowCount: 1 },
+          { rows: [SAMPLE_ROLE_ASSIGNMENT_ROW], rowCount: 1 },
         ],
       });
       const repo = createMembershipRepository(executor);
@@ -760,15 +755,20 @@ describe("MembershipRepository", () => {
         acceptedAt: NOW,
       });
 
-      expect(queries).toHaveLength(2);
+      // Four plain statements (check, guarded UPDATE, member, role): D1 is
+      // SQLite and cannot run the baseline's data-modifying CTE.
+      expect(queries).toHaveLength(4);
       expect(queries[0]!.text).toContain("token_hash = $1");
-      expect(queries[1]!.text).toContain("WITH accepted_inv AS");
+      expect(queries[1]!.text).toContain("UPDATE membership_organization_invitations");
       expect(queries[1]!.text).toContain("org_id = $3");
       expect(queries[1]!.text).toContain("email_lower = $4");
       expect(queries[1]!.text).toContain("expires_at > $2");
-      expect(queries[1]!.text).toContain("new_role AS");
-      expect(queries[1]!.text).toContain("scope_kind");
-      expect(queries[1]!.text).toContain("CROSS JOIN");
+      expect(queries[2]!.text).toContain("INSERT INTO membership_organization_members");
+      expect(queries[3]!.text).toContain("scope_kind");
+      for (const q of queries) {
+        expect(q.text).not.toContain("WITH ");
+        expect(q.text).not.toContain("row_to_json");
+      }
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.invitation.status).toBe("accepted");
@@ -949,7 +949,9 @@ describe("MembershipRepository", () => {
       const { executor } = createFakeExecutor({
         callResponses: [
           { rows: [SAMPLE_INVITATION_ROW], rowCount: 1 },
-          { rows: [{ invitation: { ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }, member: SAMPLE_MEMBER_ROW, role_assignment: SAMPLE_ROLE_ASSIGNMENT_ROW }], rowCount: 1 },
+          { rows: [{ ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }], rowCount: 1 },
+          { rows: [SAMPLE_MEMBER_ROW], rowCount: 1 },
+          { rows: [SAMPLE_ROLE_ASSIGNMENT_ROW], rowCount: 1 },
         ],
       });
       const repo = createMembershipRepository(executor);
@@ -976,7 +978,9 @@ describe("MembershipRepository", () => {
       const { executor, queries } = createFakeExecutor({
         callResponses: [
           { rows: [SAMPLE_INVITATION_ROW], rowCount: 1 },
-          { rows: [{ invitation: { ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }, member: SAMPLE_MEMBER_ROW, role_assignment: SAMPLE_ROLE_ASSIGNMENT_ROW }], rowCount: 1 },
+          { rows: [{ ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }], rowCount: 1 },
+          { rows: [SAMPLE_MEMBER_ROW], rowCount: 1 },
+          { rows: [SAMPLE_ROLE_ASSIGNMENT_ROW], rowCount: 1 },
         ],
       });
       const repo = createMembershipRepository(executor);
@@ -1001,7 +1005,9 @@ describe("MembershipRepository", () => {
       const { executor } = createFakeExecutor({
         callResponses: [
           { rows: [SAMPLE_INVITATION_ROW], rowCount: 1 },
-          { rows: [{ invitation: { ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }, member: SAMPLE_MEMBER_ROW, role_assignment: { ...SAMPLE_ROLE_ASSIGNMENT_ROW, scope_kind: "organization", scope_ref: null } }], rowCount: 1 },
+          { rows: [{ ...SAMPLE_INVITATION_ROW, accepted_at: NOW.toISOString(), status: "accepted" }], rowCount: 1 },
+          { rows: [SAMPLE_MEMBER_ROW], rowCount: 1 },
+          { rows: [{ ...SAMPLE_ROLE_ASSIGNMENT_ROW, scope_kind: "organization", scope_ref: null }], rowCount: 1 },
         ],
       });
       const repo = createMembershipRepository(executor);

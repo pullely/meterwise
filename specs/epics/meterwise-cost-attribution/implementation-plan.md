@@ -11,7 +11,7 @@ one day. MW2 and MW3 land the next day. Each milestone's tests run green
 locally before its pull request opens, because every push to a pull request
 spends mints.
 
-## MW0 — the spec
+## MW0 — the spec ✅
 
 This doc set, merged to `main` and attached to the epic with `orun spec push`.
 

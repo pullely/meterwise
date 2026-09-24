@@ -180,52 +180,36 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
 
     async appendEventWithAudit(input: AppendEventWithAuditInput): Promise<EventsResult<{ event: StoredEvent; audit: StoredAuditEntry }>> {
       const { event, audit } = input;
+      // chaseid CH2: TWO statements, not one. The baseline wrote this as a
+      // single Postgres data-modifying CTE (`WITH inserted_event AS (INSERT …)
+      // … row_to_json(…) … FULL JOIN`), which SQLite — and so D1 — cannot
+      // parse: D1 answers `near "INSERT": syntax error` and
+      // `no such function: row_to_json`. Every audited write on this stack
+      // therefore failed into the catch below and returned an error most
+      // callers never look at. `INSERT … ON CONFLICT DO NOTHING RETURNING *`
+      // runs on both engines. D1 has no interactive transaction to put the
+      // pair in; the event goes first, so a failure between the two leaves an
+      // event without its audit row (the webhook fan-out still sees it), never
+      // an audit row pointing at nothing.
       try {
-        const result = await executor.execute<Record<string, unknown>>(
-          `WITH inserted_event AS (
-            INSERT INTO events_event_log (
-              id, type, version, source, occurred_at,
-              actor_type, actor_id, actor_session_id, actor_ip,
-              org_id, project_id, environment_id,
-              subject_kind, subject_id, subject_name,
-              request_id, correlation_id, causation_id, idempotency_key,
-              payload, redact_paths
-            ) VALUES (
-              $1, $2, $3, $4, $5,
-              $6, $7, $8, $9,
-              $10, $11, $12,
-              $13, $14, $15,
-              $16, $17, $18, $19,
-              $20, $21
-            )
-            ON CONFLICT (id) DO NOTHING
-            RETURNING *
-          ), inserted_audit AS (
-            INSERT INTO events_audit_entries (
-              id, event_id, org_id, project_id, environment_id,
-              actor_type, actor_id,
-              event_type, event_version, source,
-              subject_kind, subject_id, subject_name,
-              category, description, occurred_at,
-              request_id, correlation_id,
-              payload, redact_paths
-            )
-            SELECT
-              $22, $1, $10, $23, $24,
-              $6, $7,
-              $2, $3, $4,
-              $13, $14, $15,
-              $25, $26, $5,
-              $16, $17,
-              $20, $21
-            FROM inserted_event
-            RETURNING *
+        const eventRows = await executor.execute<Record<string, unknown>>(
+          `INSERT INTO events_event_log (
+            id, type, version, source, occurred_at,
+            actor_type, actor_id, actor_session_id, actor_ip,
+            org_id, project_id, environment_id,
+            subject_kind, subject_id, subject_name,
+            request_id, correlation_id, causation_id, idempotency_key,
+            payload, redact_paths
+          ) VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9,
+            $10, $11, $12,
+            $13, $14, $15,
+            $16, $17, $18, $19,
+            $20, $21
           )
-          SELECT
-            row_to_json(e.*) AS _event,
-            row_to_json(a.*) AS _audit
-          FROM inserted_event e
-          FULL JOIN inserted_audit a ON true`,
+          ON CONFLICT (id) DO NOTHING
+          RETURNING *`,
           [
             event.id,
             event.type,
@@ -248,34 +232,67 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
             event.idempotencyKey ?? null,
             JSON.stringify(event.payload),
             JSON.stringify(event.redactPaths ?? []),
-            audit.id,
-            audit.projectId ?? event.projectId ?? null,
-            audit.environmentId ?? event.environmentId ?? null,
-            audit.category ?? "general",
-            audit.description ?? "",
           ],
         );
 
-        if (result.rows.length === 0) {
+        if (eventRows.rows.length === 0) {
           return { ok: false, error: { kind: "conflict", entity: "event" } };
         }
+        const storedEvent = eventRows.rows[0]!;
 
-        const row = result.rows[0]!;
-        const eventData = typeof row._event === "string" ? JSON.parse(row._event) : row._event;
-        const auditData = typeof row._audit === "string" ? JSON.parse(row._audit) : row._audit;
+        const auditRows = await executor.execute<Record<string, unknown>>(
+          `INSERT INTO events_audit_entries (
+            id, event_id, org_id, project_id, environment_id,
+            actor_type, actor_id,
+            event_type, event_version, source,
+            subject_kind, subject_id, subject_name,
+            category, description, occurred_at,
+            request_id, correlation_id,
+            payload, redact_paths
+          ) VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7,
+            $8, $9, $10,
+            $11, $12, $13,
+            $14, $15, $16,
+            $17, $18,
+            $19, $20
+          )
+          ON CONFLICT (id) DO NOTHING
+          RETURNING *`,
+          [
+            audit.id,
+            event.id,
+            event.orgId,
+            audit.projectId ?? event.projectId ?? null,
+            audit.environmentId ?? event.environmentId ?? null,
+            event.actorType,
+            event.actorId,
+            event.type,
+            event.version,
+            event.source,
+            event.subjectKind,
+            event.subjectId,
+            event.subjectName ?? null,
+            audit.category ?? "general",
+            audit.description ?? "",
+            event.occurredAt.toISOString(),
+            event.requestId,
+            event.correlationId ?? null,
+            JSON.stringify(event.payload),
+            JSON.stringify(event.redactPaths ?? []),
+          ],
+        );
 
-        if (!eventData) {
-          return { ok: false, error: { kind: "conflict", entity: "event" } };
-        }
-        if (!auditData) {
+        if (auditRows.rows.length === 0) {
           return { ok: false, error: { kind: "conflict", entity: "event" } };
         }
 
         return {
           ok: true,
           value: {
-            event: mapEvent(eventData as Record<string, unknown>),
-            audit: mapAuditEntry(auditData as Record<string, unknown>),
+            event: mapEvent(storedEvent),
+            audit: mapAuditEntry(auditRows.rows[0]!),
           },
         };
       } catch (err) {

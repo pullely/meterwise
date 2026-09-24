@@ -65,9 +65,14 @@ export function buildNavSections(scope: NavScope, soloMode: boolean = SOLO_MODE)
         ? [
             // Solo: projects & usage/quota are platform plumbing the B2C user
             // never sees; their surfaces collapse to the Settings (Account) panel.
+            { href: `${orgBase}/costs`, label: "Costs", icon: "CircleDollarSign" },
+            { href: `${orgBase}/prices`, label: "Price table", icon: "Tags" },
             { href: `${orgBase}/settings`, label: "Settings", icon: "Settings", subPanel: true },
           ]
         : [
+            // The product itself: what LLM usage cost, and the prices it was priced at.
+            { href: `${orgBase}/costs`, label: "Costs", icon: "CircleDollarSign" },
+            { href: `${orgBase}/prices`, label: "Price table", icon: "Tags" },
             { href: `${orgBase}/projects`, label: "Projects", icon: "FolderKanban" },
             { href: `${orgBase}/usage`, label: "Usage & quota", icon: "Gauge" },
             // Opens the dedicated settings panel — flagged so the renderer shows a ›.
