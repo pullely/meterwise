@@ -1,0 +1,40 @@
+node_modules/
+dist/
+.wrangler/
+.turbo/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+*.log
+plan.json
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+.workspace/
+
+# orun per-job staged workspaces and object-model caches.
+#
+# `**/` because a pattern containing a slash is anchored to THIS directory,
+# so the root-anchored form missed `testing/rehearsal/.orun/` — an intent
+# that lives in a subdirectory caches beside itself, and a `plan` run there
+# offered 40 content-addressed blobs to the next `git add -A`.
+**/.orun/runs/
+**/.orun/
+
+# BF6: rendered wrangler configs for wiring-templated workers (api-edge pilot)
+apps/api-edge/wrangler.jsonc
+apps/config-worker/wrangler.jsonc
+apps/events-worker/wrangler.jsonc
+apps/membership-worker/wrangler.jsonc
+apps/projects-worker/wrangler.jsonc
+apps/identity-worker/wrangler.jsonc
+apps/billing-worker/wrangler.jsonc
+apps/metering-worker/wrangler.jsonc
+apps/notifications-worker/wrangler.jsonc
+apps/admin-worker/wrangler.jsonc
+apps/integrations-worker/wrangler.jsonc
+apps/webhooks-worker/wrangler.jsonc

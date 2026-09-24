@@ -1,0 +1,149 @@
+apiVersion: sourceplane.io/v1
+kind: Intent
+
+metadata:
+  name: meterwise
+  description: Reusable Cloudflare-only multi-tenant SaaS starter (Workers, D1, KV)
+  namespace: sourceplane
+
+execution:
+  state:
+    backendUrl: https://api-edge-prod.oruncloud.workers.dev
+    # Declared, enforced tenancy: the workspace claim is sent on every remote op
+    # (including the credential-free CI OIDC exchange) so orun-cloud can enforce
+    # claim ⊆ authorized. Declaring it implies strict mode — a non-interactive
+    # run that resolves no workspace fails fast (specs/oidc-ci-tenancy §4.1).
+    # `workspace` is the leading spelling in orun v2.20.0 (a ws_ Workspace ID,
+    # slug, or legacy org_ id); it supersedes the deprecated `org:` alias.
+    workspace: ws_EVPG35GG
+    requireOrg: true
+    # Push/sync the resolved catalog to orun-cloud after a successful plan on the
+    # default branch, keeping the org-global catalog head fresh without an
+    # explicit `--push-catalog`.
+    autopushCatalog: true
+
+compositions:
+  sources:
+    # The composition stack lives in sourceplane/stack-tectonic and is consumed
+    # as a published OCI artifact rather than a repo-local directory. Pin an
+    # explicit version: a bare repository reference resolves to `:latest`, which
+    # would let a catalog release change this repo's execution contracts without
+    # a commit here. Bumping the tag is the deliberate upgrade step.
+    - name: stack-tectonic
+      kind: oci
+      ref: oci://ghcr.io/sourceplane/stack-tectonic:0.18.1
+  resolution:
+    precedence:
+      - stack-tectonic
+    bindings:
+      terraform: stack-tectonic
+      cloudflare-domain: stack-tectonic
+      db-migrate: stack-tectonic
+
+discovery:
+  roots:
+    - apps/
+    - infra/
+    - packages/
+    - tests/
+
+automation:
+  triggerBindings:
+    github-pull-request:
+      description: Pull request validation
+      on:
+        provider: github
+        event: pull_request
+        actions:
+          - opened
+          - synchronize
+          - reopened
+          - ready_for_review
+        baseBranches:
+          - main
+      plan:
+        scope: changed
+        base: pull_request.base.sha
+        head: pull_request.head.sha
+
+    github-push-main:
+      description: Main branch stack convergence after merge
+      on:
+        provider: github
+        event: push
+        branches:
+          - main
+
+    local-development:
+      description: Local testing with full Terraform execution
+      on:
+        provider: local
+
+environments:
+  dev:
+    activation:
+      triggerRefs:
+        - github-pull-request
+        - github-push-main
+        - local-development
+    parameterDefaults:
+      terraform:
+        lane: verify
+        namespace: sourceplane
+        namespacePrefix: dev-
+        owner: sourceplane
+        repo: meterwise
+        CONSOLE_CUSTOM_DOMAIN: ""
+    policies:
+      requireApproval: "false"
+    env:
+      BASE_DOMAIN: meterwise.app
+
+  stage:
+    activation:
+      triggerRefs:
+        - github-pull-request
+        - github-push-main
+    parameterDefaults:
+      terraform:
+        lane: verify
+        namespace: sourceplane
+        namespacePrefix: stg-
+        owner: sourceplane
+        repo: meterwise
+        CONSOLE_CUSTOM_DOMAIN: stage.meterwise.app
+    policies:
+      requireApproval: "false"
+    env:
+      BASE_DOMAIN: meterwise.app
+
+  prod:
+    activation:
+      triggerRefs:
+        - github-pull-request
+        - github-push-main
+    promotion:
+      dependsOn:
+        - environment: stage
+    parameterDefaults:
+      terraform:
+        lane: verify
+        namespace: sourceplane
+        namespacePrefix: prod-
+        owner: sourceplane
+        repo: meterwise
+        CONSOLE_CUSTOM_DOMAIN: prod.meterwise.app
+    policies:
+      requireApproval: "false"
+    env:
+      BASE_DOMAIN: meterwise.app
+
+# Repo-level catalog entity: front page + role-tagged docs (rendered in
+# the workspace Docs library, pinned to the commit by `orun plan`).
+repo:
+  displayName: meterwise
+  docs:
+    overview: README.md
+    pages:
+      - { path: ai/context/operations.md, role: runbook, title: Operating contract }
+      - { path: ai/context/deployment.md, role: reference, title: Live deployment manifest }
