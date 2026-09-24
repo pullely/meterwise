@@ -1,0 +1,53 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+
+metadata:
+  name: cloudflare-kv
+  description: Provisions Cloudflare KV namespaces backing the api-edge idempotency replay store (stage and prod)
+  labels:
+    domain: infra
+    scope: edge-idempotency-replay-store
+
+spec:
+  type: terraform
+  lifecycle: production
+  owner: platform
+  domain: infra
+
+  parameters:
+    orgName: sourceplane
+    stackName: cloudflare-kv
+    terraformDir: terraform
+    terraformVersion: "1.15.3"
+    # SEC-JOB: the wiring document (KV namespace id/title) is lease-published
+    # post-apply; api-edge deploys read it back as WIRING_CLOUDFLARE_KV_<ENV>.
+    secretOutputs: "WIRING_CLOUDFLARE_KV=wiring"
+
+  # The Cloudflare Terraform provider authenticates via the CLOUDFLARE_API_TOKEN
+  # env var, resolved by orun from the project-rung brokered secret (fresh per
+  # run, Deploy Workers scope). Declared at component level because plan-only
+  # lanes refresh against the live Cloudflare API too, not just apply.
+  secretEnv:
+    CLOUDFLARE_API_TOKEN: "secret://ws_EVPG35GG/meterwise/{{ .environment }}/CLOUDFLARE_API_TOKEN"
+    # Non-secret connection fact (account-id template) — replaces the ambient
+    # CLOUDFLARE_ACCOUNT_ID / TF_VAR_cloudflare_account_id CI values.
+    CLOUDFLARE_ACCOUNT_ID: "secret://ws_EVPG35GG/meterwise/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    TF_VAR_cloudflare_account_id: "secret://ws_EVPG35GG/meterwise/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+
+  subscribe:
+    environments:
+      - name: stage
+        profile: plan-only
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main
+
+      - name: prod
+        profile: plan-only
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main
+# ci: re-trigger kv apply with brand-namespaced title (baseline collision fix)
+# orun: redeploy 03-infrastructure 20260924T002738Z
