@@ -1,0 +1,14 @@
+# PERF10 — immutable caching for content-hashed build assets.
+#
+# Next.js fingerprints every file under /_next/static/ (the hash is in the
+# filename), so a content change always produces a new URL and stale cached
+# copies become unreachable. They are therefore safe to cache for a year with
+# no revalidation. The Cloudflare default for these assets is
+# `public, max-age=0, must-revalidate`, which forces the browser to send a
+# conditional request (304) for every chunk on every repeat visit — slow.
+#
+# Files in this `public/` directory are copied to the asset root
+# (`.open-next/assets/`) by the @opennextjs/cloudflare adapter, where Pages
+# honours `_headers`. HTML stays dynamic (SSR, `no-store`) and is unaffected.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

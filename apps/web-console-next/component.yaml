@@ -1,0 +1,80 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: web-console-next
+  description: Next.js 15 + opennextjs/cloudflare delivery of the Meterwise web console (per-environment, Workers + Static Assets)
+spec:
+  type: cloudflare-workers-assets-turbo
+  lifecycle: production
+  owner: platform
+  domain: starter-ui
+  path: apps/web-console-next
+  # The deploy smoke health-checks the api-edge worker
+  # (meterwise-api-edge-<env>/health), so api-edge must be live before this
+  # component's stage/prod deploy+smoke runs. Without this ordering the smoke
+  # races api-edge's concurrent deploy and fails with curl exit 22 (404).
+  dependsOn:
+    - component: api-edge
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+
+    workspaceDir: ../..
+    appDir: .
+
+    turboFilter: "@saas/web-console-next"
+    wranglerConfig: wrangler.jsonc
+
+    # @opennextjs/cloudflare emits a Worker entrypoint plus a static-assets
+    # directory bound via ASSETS — both are deployed in one `wrangler deploy`.
+    workerEntrypoint: .open-next/worker.js
+    assetsDir: .open-next/assets
+
+    # Worker is named per-env (meterwise-web-console-next-{dev,stage,prod}),
+    # matching the prior Pages-project naming convention so the cutover in
+    # Task 0083 only needs to repoint the custom domain.
+    workerName: meterwise-web-console-next
+    environmentAwareWorkerName: true
+
+    # The account's workers.dev subdomain; exposed to the smoke step as
+    # ${WORKERS_DEV_SUBDOMAIN} and used to build ${DEPLOYED_URL}.
+    workersDevSubdomain: nexo-7be
+
+    environmentBuildVar: NEXT_PUBLIC_DEPLOY_ENV
+
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/web-console-next
+
+    # Smoke: follow redirects (root `redirect("/orgs")` is a 307) and confirm
+    # the SSR'd page contains the console marker. The api-edge worker is the
+    # same hostname pattern as before.
+    # Buffer curl into a variable before grepping so `grep -q` matching early
+    # cannot SIGPIPE curl and produce a flaky exit-23 race (observed on prod
+    # in main CI run 26628207777 even though the site was live).
+    # `${WORKERS_DEV_SUBDOMAIN}` is exported by the composition's deploy/smoke
+    # step from the `workersDevSubdomain` parameter above (BF3: no duplicated
+    # subdomain literal here).
+    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'Meterwise Console' && health=$(curl -sf \"https://meterwise-api-edge-${ORUN_ENVIRONMENT}.${WORKERS_DEV_SUBDOMAIN}.workers.dev/health\") && echo \"${health}\" | grep -q ok"
+  labels:
+    team: platform
+    layer: delivery
+    surface: web-console-next
+    runtime: cloudflare
+# ci: re-trigger web-console after api-edge is live (20260622T142123Z)
+# orun: redeploy 06-console 20260924T011753Z

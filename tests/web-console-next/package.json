@@ -1,0 +1,41 @@
+{
+  "name": "@saas/web-console-next-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@saas/contracts": "workspace:*",
+    "@saas/eslint-config": "workspace:*",
+    "@saas/tsconfig": "workspace:*",
+    "@types/jest": "^29.5.14",
+    "@types/react": "npm:types-react@19.0.0-rc.1",
+    "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
+    "jest": "^29.7.0",
+    "react": "19.0.0-rc-66855b96-20241106",
+    "react-dom": "19.0.0-rc-66855b96-20241106",
+    "ts-jest": "^29.3.4",
+    "typescript": "^5.8.3"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "extensionsToTreatAsEsm": [".ts", ".tsx"],
+    "moduleFileExtensions": ["tsx", "ts", "js", "jsx", "json", "node"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1",
+      "^@saas/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
+      "^@saas/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1.ts",
+      "^@/(.*)$": "<rootDir>/../../apps/web-console-next/src/$1",
+      "^@web-console-next/(.*)$": "<rootDir>/../../apps/web-console-next/src/$1"
+    },
+    "transform": {
+      "^.+\\.tsx?$": ["ts-jest", { "useESM": true, "tsconfig": { "jsx": "react-jsx" } }]
+    },
+    "testMatch": ["<rootDir>/src/**/*.test.ts"]
+  }
+}

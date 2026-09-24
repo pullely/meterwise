@@ -1,0 +1,11 @@
+{
+  "name": "Meterwise Console",
+  "short_name": "Meterwise",
+  "description": "Control plane for your projects, environments, and entitlements.",
+  "start_url": "/orgs",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "portrait-primary"
+}
