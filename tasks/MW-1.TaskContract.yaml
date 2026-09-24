@@ -1,0 +1,13 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-1
+spec:
+  goal: The Meterwise epic's five design documents, including the dated, cited price table (design §2.5) and the MW3 key-custody security design (design §7), are on main and attached to the epic in Orunbase.
+  affects:
+    - specs/epics/meterwise-cost-attribution
+    - tasks
+  doneWhen:
+    - specs/epics/meterwise-cost-attribution holds README, design, implementation-plan, risks-and-open-questions and IMPLEMENTATION-STATUS on main
+    - orun spec list --epic meterwise-cost-attribution shows all five documents
+  gates: []
