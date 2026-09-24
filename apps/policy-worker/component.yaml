@@ -1,0 +1,55 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: policy-worker
+  description: Cloudflare Worker for policy authorization decisions
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: starter-runtime
+  path: apps/policy-worker
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    # BF6: identity/role inputs for the deploy lane's wire-credentials step.
+    # Inert until this worker gets a wrangler template (fleet rollout, BF6b).
+    orgName: sourceplane
+    owner: sourceplane
+    repo: meterwise
+
+    turboFilter: "@saas/policy-worker"
+    wranglerConfig: wrangler.jsonc
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/policy-worker
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@saas/policy-worker
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'No migrations configured.'"
+    smokeCommand: "echo 'No smoke test configured.'"
+  labels:
+    team: platform
+    layer: runtime
+    surface: policy
+    runtime: cloudflare
+# ci: trigger full-component verification (orun v2.12.0 upgrade — PR #183)
+# orun: redeploy 04-workers 20260924T003405Z

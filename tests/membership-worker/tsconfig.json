@@ -1,0 +1,21 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node", "@cloudflare/workers-types"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/db/d1": ["../../packages/db/src/d1/index.ts"],
+      "@saas/db/membership": ["../../packages/db/src/membership/index.ts"],
+      "@membership-worker/*": ["../../apps/membership-worker/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../apps/membership-worker/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

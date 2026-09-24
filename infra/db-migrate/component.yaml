@@ -1,0 +1,60 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: db-migrate
+  description: Applies database migrations to the stage and prod Cloudflare D1 databases
+  labels:
+    domain: infra
+    scope: database
+    team: platform
+    layer: data
+
+spec:
+  type: db-migrate
+  lifecycle: production
+  owner: platform
+  domain: infra
+
+  dependsOn:
+    - component: db
+    # Migrations target the database the `cloudflare-d1` component creates, and
+    # find it through the wiring document that component lease-publishes
+    # post-apply.
+    - component: cloudflare-d1
+
+  path: packages/db/src/migrations
+
+  parameters:
+    nodeVersion: "20"
+    pnpmVersion: "10.12.1"
+    owner: sourceplane
+    repo: meterwise
+
+  # Everything the runner needs to reach D1 over the REST API, all resolved
+  # from orun secrets: the provider credential is minted fresh per run from the
+  # Cloudflare integration's d1-edit template, the account id is a non-secret
+  # connection fact, and the database id arrives in the wiring document the
+  # cloudflare-d1 component lease-publishes.
+  secretEnv:
+    CLOUDFLARE_API_TOKEN: "secret://ws_EVPG35GG/meterwise/{{ .environment }}/CLOUDFLARE_D1_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "secret://ws_EVPG35GG/meterwise/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    WIRING_CLOUDFLARE_D1: "secret://ws_EVPG35GG/meterwise/{{ .environment }}/WIRING_CLOUDFLARE_D1"
+
+  subscribe:
+    environments:
+      - name: stage
+        profile: plan
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main
+
+      - name: prod
+        profile: plan
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main
+# ci: re-trigger deploy (batch A — runner-starvation recovery 20260622T115650Z)
+# ci: re-trigger deploy (batch A — runner-starvation recovery 20260622T115650Z)
+# orun: redeploy 04-workers 20260924T003405Z

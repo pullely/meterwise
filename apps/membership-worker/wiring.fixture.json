@@ -1,0 +1,8 @@
+{
+  "cloudflare-d1/stage": {
+    "d1_database_id": "00000000000000000000000000000001"
+  },
+  "cloudflare-d1/prod": {
+    "d1_database_id": "00000000000000000000000000000003"
+  }
+}

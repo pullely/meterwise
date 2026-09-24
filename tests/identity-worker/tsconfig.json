@@ -1,0 +1,25 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "lib": ["ES2022", "DOM"],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@saas/contracts": ["../../packages/contracts/src/index.ts"],
+      "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/db": ["../../packages/db/src/index.ts"],
+      "@saas/db/ids": ["../../packages/db/src/ids/index.ts"],
+      "@saas/db/d1": ["../../packages/db/src/d1/index.ts"],
+      "@saas/db/identity": ["../../packages/db/src/identity/index.ts"],
+      "@saas/db/events": ["../../packages/db/src/events/index.ts"],
+      "@saas/notifications-client": ["../../packages/notifications-client/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

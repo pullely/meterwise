@@ -1,0 +1,96 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
+// Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
+// committed wiring.fixture.json for offline dry-runs (wire-fixture).
+{
+  "name": "meterwise-integrations-worker",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  "vars": {
+    "ENVIRONMENT": "local"
+  },
+  // Inbox drain (IG2): attribute → normalize → emit, every minute — same
+  // cadence as the outbound webhooks dispatcher. Unblocked 2026-06-11 by the
+  // Workers Paid upgrade (the account was previously at the free plan's
+  // 5-cron-trigger limit).
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "env": {
+    "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev"
+      }
+    },
+    "stage": {
+      "workers_dev": false,
+      "vars": {
+        "ENVIRONMENT": "stage"
+        // Secrets (set via `wrangler secret put <NAME> --env stage` once the
+        // GitHub App for stage is registered — saas-integrations D1):
+        //   SECRET_ENCRYPTION_KEY, INTEGRATIONS_STATE_SECRET,
+        //   GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET,
+        //   GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET, GITHUB_APP_SLUG
+      },
+      "d1_databases": [
+        {
+          "binding": "PLATFORM_DB",
+          "database_name": "meterwise-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MEMBERSHIP_WORKER",
+          "service": "meterwise-membership-worker-stage"
+        },
+        {
+          "binding": "POLICY_WORKER",
+          "service": "meterwise-policy-worker-stage"
+        },
+        {
+          "binding": "BILLING_WORKER",
+          "service": "meterwise-billing-worker-stage"
+        },
+        {
+          "binding": "PROJECTS_WORKER",
+          "service": "meterwise-projects-worker-stage"
+        }
+      ]
+    },
+    "prod": {
+      "workers_dev": false,
+      "vars": {
+        "ENVIRONMENT": "prod"
+        // Secrets: same set as stage, via `wrangler secret put <NAME> --env prod`
+      },
+      "d1_databases": [
+        {
+          "binding": "PLATFORM_DB",
+          "database_name": "meterwise-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MEMBERSHIP_WORKER",
+          "service": "meterwise-membership-worker-prod"
+        },
+        {
+          "binding": "POLICY_WORKER",
+          "service": "meterwise-policy-worker-prod"
+        },
+        {
+          "binding": "BILLING_WORKER",
+          "service": "meterwise-billing-worker-prod"
+        },
+        {
+          "binding": "PROJECTS_WORKER",
+          "service": "meterwise-projects-worker-prod"
+        }
+      ]
+    }
+  }
+}
