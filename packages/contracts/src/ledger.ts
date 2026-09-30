@@ -28,7 +28,8 @@ export const PROVIDER_RE = /^[a-z0-9][a-z0-9_.-]{0,31}$/;
 export const COST_DIMENSIONS = ["tenant", "feature", "model", "provider", "user"] as const;
 export type CostDimension = (typeof COST_DIMENSIONS)[number];
 
-export const PRICE_STATUSES = ["priced", "unknown_model", "before_price_table"] as const;
+/** `usage_incomplete` (MW3): a proxied stream that ended without its usage chunk; recorded unpriced. */
+export const PRICE_STATUSES = ["priced", "unknown_model", "before_price_table", "usage_incomplete"] as const;
 export type PriceStatus = (typeof PRICE_STATUSES)[number];
 
 export const INGEST_STATUSES = ["accepted", "duplicate", "conflict"] as const;

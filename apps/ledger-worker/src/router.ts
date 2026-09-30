@@ -5,6 +5,7 @@ import { handleListEvents } from "./handlers/events.js";
 import { handleCosts } from "./handlers/costs.js";
 import { handlePrices } from "./handlers/prices.js";
 import { handleCheck } from "./handlers/check.js";
+import { PROXY_CALLER, handleProxyEvent } from "./handlers/proxy-events.js";
 import { handleListAlerts } from "./handlers/alerts.js";
 import { handleDeleteBudget, handleGetBudget, handleListBudgets, handlePutBudget } from "./handlers/budgets.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
@@ -55,12 +56,24 @@ const TENANT_ROUTES: Partial<Record<string, TenantHandler>> = {
 
 const ORG_ROUTE_RE = /^\/v1\/organizations\/([^/]+)\/(llm-events|llm-costs|llm-prices|llm-check|budgets|alerts)$/;
 const BUDGET_ROUTE_RE = /^\/v1\/organizations\/([^/]+)\/budgets\/([^/]+)$/;
+// MW3: proxy-worker's internal ingest, reached only over its service binding.
+const PROXY_EVENTS_RE = /^\/v1\/internal\/organizations\/([^/]+)\/proxy-events$/;
 
 export async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const requestId = resolveRequestId(request);
   try {
     if (url.pathname === "/health" && request.method === "GET") return handleHealth(env, requestId);
+    const px = url.pathname.match(PROXY_EVENTS_RE);
+    if (px) {
+      if (request.headers.get("x-internal-caller") !== PROXY_CALLER) return notFound(requestId, url.pathname);
+      const orgId = parseOrgPublicId(px[1]!);
+      if (!orgId) return notFound(requestId);
+      if (request.method !== "POST") return methodNotAllowed(requestId);
+      const actor = resolveActor(request);
+      if (!actor) return errorResponse("unauthenticated", "Authentication required", 401, requestId);
+      return await handleProxyEvent(request, env, requestId, actor, orgId);
+    }
     const b = url.pathname.match(BUDGET_ROUTE_RE);
     if (b) {
       const orgId = parseOrgPublicId(b[1]!);

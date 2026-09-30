@@ -1,0 +1,28 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs.
+// mock-upstream is a STAGE-ONLY stand-in for the OpenAI chat-completions API.
+// proxy-worker's stage block binds it as UPSTREAM_OVERRIDE, so no stage smoke
+// ever calls a real provider (design §7.6, §10). It has no prod block and no
+// binding of any kind, stores nothing, and is reachable only over that service
+// binding (workers_dev off).
+{
+  "name": "meterwise-mock-upstream",
+  "compatibility_date": "2025-05-01",
+  "main": "src/index.ts",
+  "minify": false,
+  "vars": {
+    "ENVIRONMENT": "local"
+  },
+  "env": {
+    "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev"
+      }
+    },
+    "stage": {
+      "workers_dev": false,
+      "vars": {
+        "ENVIRONMENT": "stage"
+      }
+    }
+  }
+}

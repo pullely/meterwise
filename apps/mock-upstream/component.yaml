@@ -1,0 +1,49 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: mock-upstream
+  description: STAGE-ONLY mock of the OpenAI chat-completions API that proxy-worker's stage deployment forwards to, so no smoke or test ever calls a real provider (MW3). No prod environment, no bindings, no public hostname.
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: starter-runtime
+  path: apps/mock-upstream
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    orgName: sourceplane
+    owner: sourceplane
+    repo: meterwise
+
+    turboFilter: "@saas/mock-upstream"
+    wranglerConfig: wrangler.jsonc
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: ""
+    wiringEnvs: "stage"
+    wiringFixture: wiring.fixture.json
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/mock-upstream
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@saas/mock-upstream
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env stage
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env stage
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'No migrations configured.'"
+    smokeCommand: "echo 'No smoke test configured.'"
+  labels:
+    team: platform
+    layer: test
+    surface: proxy
+    runtime: cloudflare
