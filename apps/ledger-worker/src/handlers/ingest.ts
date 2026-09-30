@@ -50,6 +50,10 @@ export async function handleIngest(request: Request, env: Env, requestId: string
     let conflicts = 0;
     let trackedSpend = 0;
     let firstTracked: string | null = null;
+    // (tenant, period) → [cost, events]: one rollup upsert per group after the
+    // claims, not one per event. Each D1 statement is a round trip (~0.3 s
+    // from a far colo on stage), so per-event upserts doubled a batch's time.
+    const spend = new Map<string, { tenant: string; period: string; cost: number; events: number }>();
 
     for (const e of v.value) {
       const out = await claimOne(db, book, orgId, e, receivedAt, recordedBy, "sdk", false);
@@ -60,8 +64,14 @@ export async function handleIngest(request: Request, env: Env, requestId: string
       if (out.tracked !== null) {
         trackedSpend += out.tracked.costNanoUsd;
         firstTracked ??= out.tracked.id;
+        const k = `${out.tracked.tenant}\u0000${out.tracked.period}`;
+        const g = spend.get(k) ?? { tenant: out.tracked.tenant, period: out.tracked.period, cost: 0, events: 0 };
+        g.cost += out.tracked.costNanoUsd;
+        g.events += 1;
+        spend.set(k, g);
       }
     }
+    for (const g of spend.values()) await db.guard.addSpend(orgId, g.tenant, g.period, g.cost, receivedAt, g.events);
     if (firstTracked !== null) await reportTrackedSpend(db.executor, orgId, firstTracked, trackedSpend, receivedAt);
     const body: IngestLlmEventsResponse = { results, accepted, duplicates, conflicts };
     return successResponse(body, requestId);
@@ -70,8 +80,8 @@ export async function handleIngest(request: Request, env: Env, requestId: string
 
 export interface ClaimOutcome {
   item: IngestResultItem;
-  /** The accepted event's id and cost when it was priced (it joined the rollup). */
-  tracked: { id: string; costNanoUsd: number } | null;
+  /** The accepted event's id, cost, tenant and budget period when it was priced (the caller adds it to the rollup). */
+  tracked: { id: string; costNanoUsd: number; tenant: string; period: string } | null;
 }
 
 /**
@@ -119,15 +129,12 @@ export async function claimOne(
   };
   const claimed = await db.ledger.claimEvent(row);
   if (claimed !== null) {
-    // MW2: the month-to-date rollup, one atomic upsert per ACCEPTED priced
-    // event — never for a duplicate or a conflict (design §1.4). If this
-    // statement is lost after the claim committed, the cron's reconciliation
-    // restores the rollup from ledger_events.
-    let tracked: ClaimOutcome["tracked"] = null;
-    if (row.costNanoUsd !== null) {
-      await db.guard.addSpend(orgId, row.tenant, budgetPeriod(row.occurredAt), row.costNanoUsd, receivedAt);
-      tracked = { id: claimed, costNanoUsd: row.costNanoUsd };
-    }
+    // MW2: only an ACCEPTED priced event joins the month-to-date rollup —
+    // never a duplicate or a conflict (design §1.4). The caller applies the
+    // atomic upsert (grouped per tenant and period); if it is lost after the
+    // claim committed, the cron's reconciliation restores it.
+    const tracked: ClaimOutcome["tracked"] =
+      row.costNanoUsd !== null ? { id: claimed, costNanoUsd: row.costNanoUsd, tenant: row.tenant, period: budgetPeriod(row.occurredAt) } : null;
     return { item: item(e.eventId, "accepted", { ...row, id: claimed }), tracked };
   }
   const existing = await db.ledger.getEventByKey(orgId, e.eventId);

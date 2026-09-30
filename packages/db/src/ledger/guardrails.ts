@@ -82,7 +82,7 @@ export interface GuardrailsRepository {
    * SQLite applies it atomically, so concurrent ingests lose no increment.
    * Returns the month-to-date total after the add.
    */
-  addSpend(orgId: string, tenant: string, period: string, costNanoUsd: number, now: string): Promise<number>;
+  addSpend(orgId: string, tenant: string, period: string, costNanoUsd: number, now: string, events?: number): Promise<number>;
   getSpend(orgId: string, tenant: string, period: string): Promise<SpendRollup | null>;
   /**
    * Recompute every (org, tenant) rollup of `period` from ledger_events in ONE
@@ -182,16 +182,16 @@ function mapAlert(row: Row): LedgerAlert {
 
 export function createGuardrailsRepository(executor: SqlExecutor): GuardrailsRepository {
   return {
-    async addSpend(orgId, tenant, period, costNanoUsd, now) {
+    async addSpend(orgId, tenant, period, costNanoUsd, now, events = 1) {
       const { rows } = await executor.execute<Row>(
         `INSERT INTO ledger_spend_rollups (org_id, tenant, period, cost_nanousd, events, updated_at)
-         VALUES ($1, $2, $3, $4, 1, $5)
+         VALUES ($1, $2, $3, $4, $6, $5)
          ON CONFLICT (org_id, tenant, period) DO UPDATE
            SET cost_nanousd = ledger_spend_rollups.cost_nanousd + excluded.cost_nanousd,
-               events = ledger_spend_rollups.events + 1,
+               events = ledger_spend_rollups.events + excluded.events,
                updated_at = excluded.updated_at
          RETURNING cost_nanousd`,
-        [orgId, tenant, period, costNanoUsd, now],
+        [orgId, tenant, period, costNanoUsd, now, events],
       );
       return Number(rows[0]?.cost_nanousd ?? 0);
     },

@@ -110,3 +110,9 @@ the code departed from `design.md`.
   and timing headers, and `x-mock-*`, which only the stage mock sends).
 - **Console:** "Or use the proxy" panel on the Costs page; no page asks for a
   provider key.
+- **The rollup upsert is grouped per (tenant, month) per request** instead of
+  one per event (MW2 as landed). Found by MW2's stage smoke: a 100-event batch
+  timed out the smoke's 30 s client, because every D1 statement is a round
+  trip (measured on stage from the smoke's colo: 10 events 8.6 s, 25 events
+  16.2 s, 50 events 31.9 s, about 0.3 s a statement, two statements per
+  event). Grouping halves it; a test pins one rollup statement per group.

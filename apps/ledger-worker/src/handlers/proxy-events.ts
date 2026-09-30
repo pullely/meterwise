@@ -41,6 +41,7 @@ export async function handleProxyEvent(request: Request, env: Env, requestId: st
     if (!v.valid) return validationError(requestId, v.fields);
     const receivedAt = now.toISOString();
     const out = await claimOne(db, await PriceBook.load(db.ledger), orgId, v.value[0]!, receivedAt, actorRef(actor.subjectId), "proxy", !usageComplete);
+    if (out.tracked) await db.guard.addSpend(orgId, out.tracked.tenant, out.tracked.period, out.tracked.costNanoUsd, receivedAt);
     if (out.tracked) await reportTrackedSpend(db.executor, orgId, out.tracked.id, out.tracked.costNanoUsd, receivedAt);
     const res: IngestLlmEventsResponse = {
       results: [out.item],
