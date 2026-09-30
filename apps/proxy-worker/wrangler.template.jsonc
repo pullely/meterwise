@@ -1,0 +1,68 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (deploy-time wiring).
+// proxy-worker carries NO @@wiring tokens: it has no D1, KV or R2 binding and
+// must never gain one (design §7.2; tests/proxy-worker asserts it). It is its
+// own public origin (workers_dev on), because api-edge resolves every
+// Authorization header as a Meterwise bearer and the provider key must never
+// reach that path (design §7.3).
+//
+// SECURITY: do not enable Logpush with request headers, a tail Worker, or any
+// observability that captures headers for this Worker without a security
+// review (risk MW-K): Authorization here is the CUSTOMER'S PROVIDER KEY.
+{
+  "name": "meterwise-proxy-worker",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  // The provider origin is a constant in src/upstream.ts, not a variable:
+  // nothing in a request or in this file can point the key somewhere else.
+  "vars": {
+    "ENVIRONMENT": "local"
+  },
+  "env": {
+    "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev"
+      }
+    },
+    "stage": {
+      "workers_dev": true,
+      "vars": {
+        "ENVIRONMENT": "stage"
+      },
+      "services": [
+        {
+          "binding": "IDENTITY_WORKER",
+          "service": "meterwise-identity-worker-stage"
+        },
+        {
+          "binding": "LEDGER_WORKER",
+          "service": "meterwise-ledger-worker-stage"
+        },
+        // STAGE ONLY: the provider is replaced by mock-upstream, a Worker we
+        // control, so no stage smoke ever calls a real provider. The prod
+        // block below has no such binding; its live settings are checked.
+        {
+          "binding": "UPSTREAM_OVERRIDE",
+          "service": "meterwise-mock-upstream-stage"
+        }
+      ]
+    },
+    "prod": {
+      "workers_dev": true,
+      "vars": {
+        "ENVIRONMENT": "prod"
+      },
+      "services": [
+        {
+          "binding": "IDENTITY_WORKER",
+          "service": "meterwise-identity-worker-prod"
+        },
+        {
+          "binding": "LEDGER_WORKER",
+          "service": "meterwise-ledger-worker-prod"
+        }
+      ]
+    }
+  }
+}

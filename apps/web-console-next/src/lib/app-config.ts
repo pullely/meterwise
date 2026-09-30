@@ -22,6 +22,14 @@ export function apiEdgeWorkersDevUrl(environment: string): string {
   return `https://meterwise-api-edge-${environment}.${WORKERS_DEV_SUBDOMAIN}.workers.dev`;
 }
 
+/**
+ * MW3: the streaming proxy's own workers.dev origin (not api-edge: the
+ * proxy's Authorization header is the customer's provider key).
+ */
+export function proxyWorkersDevUrl(environment: string): string {
+  return `https://meterwise-proxy-worker-${environment}.${WORKERS_DEV_SUBDOMAIN}.workers.dev`;
+}
+
 /** Sales contact surfaced by the billing upgrade UX. */
 export const SALES_EMAIL = "sales@sourceplane.ai";
 

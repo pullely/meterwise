@@ -39,3 +39,6 @@ apps/admin-worker/wrangler.jsonc
 apps/integrations-worker/wrangler.jsonc
 apps/webhooks-worker/wrangler.jsonc
 apps/ledger-worker/wrangler.jsonc
+# MW3 (runbook trap 47): the proxy and its stage-only mock upstream
+apps/proxy-worker/wrangler.jsonc
+apps/mock-upstream/wrangler.jsonc

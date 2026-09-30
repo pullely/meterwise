@@ -74,3 +74,45 @@ the code departed from `design.md`.
 - **Redeploy markers (trap 17):** only `policy-worker` gets one
   (`ledger.budget.write`); no other worker's behaviour depends on the shared
   packages MW2 changes.
+
+### MW3
+
+- **A stage-only mock upstream is its own Worker.** `apps/mock-upstream`
+  (`meterwise-mock-upstream-stage`, no prod environment, no bindings, no
+  public hostname) mimics `POST /v1/chat/completions`. proxy-worker's STAGE
+  block binds it as `UPSTREAM_OVERRIDE`; the prod block has no such binding,
+  so prod can only reach the constant `https://api.openai.com` origin. The
+  unit tests bind the same mock code. No test or smoke calls a real provider.
+- **The upstream origin is a code constant** (`src/upstream.ts`), not a
+  wrangler variable: nothing in a request or in configuration text can point
+  the key elsewhere; only a service binding can replace it, and only stage has
+  one. A source-scan test pins that the origin appears exactly once.
+- **The Worker is `meterwise-proxy-worker-{env}`**, not `meterwise-proxy-{env}`
+  as design §4.3 sketched: the portfolio's naming (`<slug>-<component>-<env>`).
+- **Budget check fails open.** If ledger-worker cannot answer `llm-check`, the
+  proxy forwards the call (availability over enforcement; the call is still
+  metered). A `deny` answer is always enforced (429 `budget_exceeded`).
+- **A "model" shaped like a secret key (`sk-`, `rk-`, `pk-`) is refused (400)**
+  and never logged. Found by the custody suite: the log's model-name check
+  accepted `sk-test-…` as a model name. Defence in depth: it is not the
+  Authorization path, but a key pasted into the wrong field must not travel.
+- **`usage_incomplete` tokens:** a stream cut short records 0 input tokens
+  and the number of content chunks seen as output tokens (OpenAI streams about
+  one token per chunk). It is unpriced, as design §7.5 says.
+- **Migration 220 rebuilds `ledger_events`** (create, copy, drop, rename,
+  re-index) because SQLite cannot alter a CHECK. It also pins that only
+  `source = 'proxy'` rows can be `usage_incomplete`. The D1 runner applies
+  statements one at a time, so a crash between DROP and RENAME needs a manual
+  `ALTER TABLE ledger_events_v220 RENAME TO ledger_events` before a retry.
+- **The Meterwise-key cache is in-isolate** (a Map keyed by SHA-256, 30 s), not
+  the Cache API: the proxy writes nothing to any Cloudflare storage.
+- **Returned headers are an allow-list** (content type, the provider's rate-limit
+  and timing headers, and `x-mock-*`, which only the stage mock sends).
+- **Console:** "Or use the proxy" panel on the Costs page; no page asks for a
+  provider key.
+- **The rollup upsert is grouped per (tenant, month) per request** instead of
+  one per event (MW2 as landed). Found by MW2's stage smoke: a 100-event batch
+  timed out the smoke's 30 s client, because every D1 statement is a round
+  trip (measured on stage from the smoke's colo: 10 events 8.6 s, 25 events
+  16.2 s, 50 events 31.9 s, about 0.3 s a statement, two statements per
+  event). Grouping halves it; a test pins one rollup statement per group.

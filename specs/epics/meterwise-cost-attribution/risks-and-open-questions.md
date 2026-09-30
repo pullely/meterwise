@@ -158,3 +158,15 @@ mis-prices silently. Settled: the table is versioned data, every row records
 the day it was read, the Price table page shows that date, and the table is
 re-read from the sources monthly (and on any announced change) into a new
 version.
+
+## MW-O — Ingest latency is D1 round trips (RISK, open)
+
+Found on stage in MW2: each D1 statement from ledger-worker costs about
+0.3 s when the Worker runs in a colo far from the database, and ingest makes
+one claim statement per event (D1 binds at most 100 parameters per statement,
+and an event row has 22 columns, so claims cannot be packed into one
+multi-row INSERT). A 100-event batch therefore takes about 30 s. The SDK
+reports after the LLM call, off the user's path, so this is throughput, not
+user latency; and the pre-flight `llm-check` is three statements. Options,
+not taken yet: Smart Placement for ledger-worker (run it near D1), D1 read
+replication for the reads, or `batch()` support in the baseline executor.

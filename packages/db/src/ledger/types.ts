@@ -16,7 +16,7 @@ export interface ModelPrice {
   checkedOn: string;
 }
 
-export type LedgerPriceStatus = "priced" | "unknown_model" | "before_price_table";
+export type LedgerPriceStatus = "priced" | "unknown_model" | "before_price_table" | "usage_incomplete";
 
 export interface LedgerEvent {
   id: string;

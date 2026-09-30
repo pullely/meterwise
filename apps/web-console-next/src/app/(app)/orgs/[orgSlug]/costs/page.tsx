@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { useSession } from "@/lib/session";
 import { useApiQuery, qk } from "@/lib/query";
-import { wrap } from "@/lib/api";
+import { DEPLOY_ENV, wrap } from "@/lib/api";
+import { proxyWorkersDevUrl } from "@/lib/app-config";
 
 const DIMENSIONS: { by: CostDimension; label: string }[] = [
   { by: "tenant", label: "Tenant" },
@@ -75,6 +76,28 @@ Authorization: Bearer <api key>
 { "events": [{ "eventId": "<uuid made before the call>", "tenant": "acme", "feature": "summarize",
                "user": "u-42", "provider": "openai", "model": "gpt-4o",
                "inputTokens": 1000, "outputTokens": 500, "latencyMs": 820 }] }`}</pre>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Or use the proxy</CardTitle>
+          <CardDescription>
+            Point your OpenAI client at Meterwise and every call is metered as it streams. Your OpenAI key stays in
+            <code> Authorization</code> and is passed through to OpenAI on each request: Meterwise never stores or logs it,
+            and this console never asks for it. Your Meterwise API key goes in <code>x-meterwise-key</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">{`const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,            // unchanged: passed through, never stored
+  baseURL: "${proxyWorkersDevUrl(DEPLOY_ENV ?? "prod")}/v1",
+  defaultHeaders: {
+    "x-meterwise-key": process.env.METERWISE_API_KEY,  // role: builder
+    "x-meterwise-tenant": "acme",                     // per request: your customer
+    "x-meterwise-feature": "summarize",               // optional
+  },
+});`}</pre>
         </CardContent>
       </Card>
 

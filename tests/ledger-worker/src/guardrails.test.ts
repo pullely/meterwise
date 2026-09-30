@@ -64,6 +64,23 @@ describe("the month-to-date rollup at ingest", () => {
     expect(truth.n).toBe(40);
   });
 
+  it("a batch costs one rollup statement per (tenant, month), not one per event", async () => {
+    const w = world();
+    const real = w.env.PLATFORM_DB!;
+    let rollupStatements = 0;
+    w.env.PLATFORM_DB = {
+      prepare(q: string) {
+        if (q.includes("INSERT INTO ledger_spend_rollups")) rollupStatements++;
+        return real.prepare(q);
+      },
+    } as unknown as D1Database;
+    const batch = Array.from({ length: 100 }, (_, i) => ev({ tenant: i % 2 ? "acme" : "globex" }));
+    expect((await ok(await ingest(w, batch))).accepted).toBe(100);
+    expect(rollupStatements).toBe(2);
+    expect(rollup(w)).toEqual({ cost_nanousd: 50 * 7_500_000, events: 50 });
+    expect(rollup(w, "globex")).toEqual({ cost_nanousd: 50 * 7_500_000, events: 50 });
+  });
+
   it("reports the accepted spend once to the baseline metering context (MW-J)", async () => {
     const w = world();
     const a = ev();

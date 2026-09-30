@@ -1,0 +1,67 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: proxy-worker
+  description: Cloudflare Worker for Meterwise's streaming OpenAI-compatible proxy (MW3) — its own public origin, NO D1/KV/R2 binding; forwards the customer's provider key untouched to a fixed origin, never stores or logs it, and meters every call through ledger-worker (design §7)
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: starter-runtime
+  path: apps/proxy-worker
+  dependsOn:
+    # It calls both over service bindings; ledger-worker's internal
+    # proxy-events route and 220's usage_incomplete must be live first.
+    - component: identity-worker
+    - component: ledger-worker
+    # Stage binds UPSTREAM_OVERRIDE to it (stage only; prod has no binding).
+    - component: mock-upstream
+  # SECURITY (risk MW-K): Authorization on this Worker is the customer's
+  # provider key. Enabling Logpush with request headers, a tail Worker or any
+  # header-capturing observability for it needs a security review.
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    orgName: sourceplane
+    owner: sourceplane
+    repo: meterwise
+
+    turboFilter: "@saas/proxy-worker"
+    wranglerConfig: wrangler.jsonc
+    # Rendered, never committed (runbook trap 47), though it has no wiring
+    # tokens: there is nothing to wire, by design.
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: ""
+    wiringEnvs: "stage,prod"
+    wiringFixture: wiring.fixture.json
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/proxy-worker
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@saas/proxy-worker
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'No migrations configured.'"
+    smokeCommand: "echo 'No smoke test configured.'"
+  labels:
+    team: platform
+    layer: edge
+    surface: proxy
+    runtime: cloudflare

@@ -1,0 +1,28 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-4
+spec:
+  goal: An OpenAI-compatible streaming proxy on its own origin that forwards the customer's provider key untouched, never stores or logs it, and meters every call through ledger-worker.
+  # Component refs, fully qualified (runbook trap 15). mock-upstream is a
+  # stage-only stand-in for the provider, so no test or smoke calls a real one.
+  affects:
+    - default/meterwise/proxy-worker
+    - default/meterwise/proxy-worker-tests
+    - default/meterwise/mock-upstream
+    - default/meterwise/ledger-worker
+    - default/meterwise/ledger-worker-tests
+    - default/meterwise/db
+    - default/meterwise/db-tests
+    - default/meterwise/db-migrate
+    - default/meterwise/contracts
+    - default/meterwise/contracts-tests
+    - default/meterwise/web-console-next
+    - default/meterwise/web-console-next-tests
+  doneWhen:
+    - proxy-worker has no D1, KV or R2 binding, its own public origin, a fixed upstream origin, and a gitignored rendered wrangler.jsonc
+    - the seven custody tests of design section 7.6 pass in CI against a mock upstream; no test calls a real provider
+    - migration 220 adds usage_incomplete by rebuilding ledger_events, replays twice green on node:sqlite and is applied on stage and prod
+    - on stage a streamed completion through the proxy to the mock upstream is metered, and the fake key appears in no D1 table, audit row or log line
+    - on prod the proxy answers health 200 and 401 without a key, and its live settings carry no upstream override and no storage binding
+  gates: []
