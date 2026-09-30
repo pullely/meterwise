@@ -25,8 +25,10 @@ export async function handle(request: Request): Promise<Response> {
     return Response.json({ error: { message: "not found", type: "invalid_request_error" } }, { status: 404 });
   }
   const auth = request.headers.get("authorization");
+  const names: string[] = [];
+  request.headers.forEach((_value, name) => names.push(name));
   const seen = {
-    "x-mock-header-names": [...request.headers.keys()].sort().join(","),
+    "x-mock-header-names": names.sort().join(","),
     "x-mock-authorization-sha256": auth ? await sha256(auth) : "none",
   };
   if (!auth || !auth.startsWith("Bearer ")) {

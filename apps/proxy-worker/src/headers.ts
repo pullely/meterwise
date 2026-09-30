@@ -25,6 +25,8 @@ const RETURNED = /^(content-type|cache-control|openai-processing-ms|openai-versi
 
 export function returnedHeaders(upstream: Headers): Headers {
   const out = new Headers();
-  for (const [name, value] of upstream) if (RETURNED.test(name)) out.set(name, value);
+  upstream.forEach((value, name) => {
+    if (RETURNED.test(name)) out.set(name, value);
+  });
   return out;
 }

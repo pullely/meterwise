@@ -201,5 +201,14 @@ export const manifest: MigrationManifest = {
       description:
         "Budgets and guardrails (MW2) — soft and hard monthly budgets per tenant with a downgrade map, month-to-date spend rollups (backfilled once from ledger_events, maintained at ingest), and alerts claimed once per (org, kind, subject, window)",
     },
+    {
+      id: "220_ledger_usage_incomplete",
+      context: "ledger",
+      path: "220_ledger_usage_incomplete/up.sql",
+      checksum:
+        "3a0ead5021fcb004854af371d19a99c845e9b38c9a42cf6cda726decfd7e0f77",
+      description:
+        "The streaming proxy (MW3) — ledger_events.price_status gains usage_incomplete (proxy only), by a table rebuild: SQLite cannot alter a CHECK",
+    },
   ],
 };

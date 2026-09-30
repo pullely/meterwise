@@ -57,5 +57,6 @@ export function logEvent(f: LogFields): void {
     tokens: f.tokens === null ? null : { input: int(f.tokens.input), output: int(f.tokens.output) },
     metered: f.metered === true,
   };
+  // eslint-disable-next-line no-console -- the Worker's one log call (design §7.4 rule 2)
   console.log(JSON.stringify(line));
 }
