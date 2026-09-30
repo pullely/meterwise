@@ -7,8 +7,8 @@ the code departed from `design.md`.
 |---|---|---|
 | MW0 — the spec | ✅ merged 9075db2, pushed with `orun spec push` | #9 |
 | MW1 — the usage ledger | ✅ merged d1b1387; `main` deploy run 35944403297 green on all 66 lanes after two transient reruns (runbook trap 31); stage and prod verified | #10 |
-| MW2 — budgets and guardrails | In review | this PR |
-| MW3 — the streaming proxy | | |
+| MW2 — budgets and guardrails | ✅ merged 5fdf450; `main` deploy run 36666757271 green on all 38 lanes, first attempt; stage and prod verified | #11 |
+| MW3 — the streaming proxy | ✅ merged 801ae7c; `main` deploy run 36670523338 green on all 22 lanes, first attempt; stage and prod verified | #12 |
 
 ## Departures from the design
 
@@ -116,3 +116,46 @@ the code departed from `design.md`.
   trip (measured on stage from the smoke's colo: 10 events 8.6 s, 25 events
   16.2 s, 50 events 31.9 s, about 0.3 s a statement, two statements per
   event). Grouping halves it; a test pins one rollup statement per group.
+
+## At ship (2026-09-30): the end-to-end evidence (runbook trap 41)
+
+Every milestone was driven end to end on stage AFTER MW3's deploy, and prod
+was checked to the scope runbook trap 27 allows.
+
+- **MW1 (stage):** sign-in via DEBUG_DELIVERY, organization 201, builder API
+  key; a 5-event ingest priced exactly as the hand computation from the
+  `2026-09-24` table; a retry (with and without `Idempotency-Key`) is
+  `duplicate`, a reused id with other content is `conflict`, totals unchanged
+  at $0.0322; cost by tenant, feature, model and user equal to the hand
+  numbers; a non-member and another org's key get 404; a revoked key gets 401
+  after the 30 s edge cache.
+- **MW2 (stage):** budget soft $0.01 / hard $0.02 with gpt-4o → gpt-4o-mini:
+  `llm-check` allow → allow → downgrade (gpt-4o) / warn (another model) →
+  deny as spend crossed $0.0075, $0.015, $0.0225. A 250-event burst raised
+  exactly one `runaway_loop` alert at the next cron tick, notifications-worker
+  accepted the owner's email (`notified`, 1/1; the notification row then ends
+  `failed` because no sending domain is owned, trap 27), and the following
+  tick sent nothing new. A second user gets 404 on every MW2 route.
+- **MW3 (stage):** the proxy, bound to the stage mock upstream, streamed a
+  completion (mock saw the provider key byte-for-byte by SHA-256, and no
+  `x-meterwise-*` header); the call was metered at 7,500,000 n$ (the hand
+  computation), plus a non-streamed call, a cut-short stream
+  (`usage_incomplete`), provider 401/500 passed through unmetered, and a 429
+  past a hard budget. **The fake provider key appears in none of the 50 stage
+  D1 tables (722 rows, audit entries and the event log included) and in none
+  of the `wrangler tail` records of proxy-, ledger- and identity-worker taken
+  during the smoke** (Cloudflare's tail shows `authorization` and
+  `x-meterwise-key` as `REDACTED`).
+- **Prod:** api-edge `/health` 200; every MW1/MW2 route 401 unauthenticated,
+  an unknown route 404; `DEBUG_DELIVERY` off. Proxy `/health` 200 with
+  upstream `openai`, 401 without a key, 404 elsewhere. The LIVE settings of
+  `meterwise-proxy-worker-prod` hold exactly `ENVIRONMENT`, `IDENTITY_WORKER`
+  and `LEDGER_WORKER`: no D1, KV, R2, DO, queue or AE binding, no
+  `UPSTREAM_OVERRIDE`, no Logpush, no tail consumer; no prod mock upstream
+  exists.
+
+Open for the owner (unchanged from the risks file): prod sign-in and email
+delivery need an owned sending domain (trap 27); the $1,000 Free allowance is
+tracked in metering but not enforced (MW-J); ingest latency is D1 round trips
+(MW-O); Stripe revenue join and export (MW-D) and real provider calls are out
+of scope.

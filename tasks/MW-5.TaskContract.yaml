@@ -1,0 +1,12 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-5
+spec:
+  goal: Record Meterwise as shipped - MW2 and MW3 marked done in the plan and status, README Shipped with Shipped as, after MW3's main deploy is fully green and every stage check passed.
+  # Docs only: no catalog component changes (runbook trap 28).
+  affects: []
+  doneWhen:
+    - README says Shipped with Shipped as filled in, and the plan and status mark MW2 and MW3 done with their PRs and deploy runs
+    - IMPLEMENTATION-STATUS records the stage and prod evidence for every milestone
+  gates: []

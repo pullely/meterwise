@@ -69,7 +69,7 @@ This milestone builds the `ledger` bounded context end to end:
   `DEBUG_DELIVERY` is off
 - `tests/ledger-worker` is green in CI
 
-## MW2 — budgets and guardrails
+## MW2 — budgets and guardrails ✅
 
 - Migration `210_ledger_guardrails`: `ledger_budgets`, `ledger_spend_rollups`
   (backfilled once from `ledger_events`), `ledger_alerts` (design §1.4).
@@ -95,7 +95,7 @@ This milestone builds the `ledger` bounded context end to end:
 - tests pin the rollup under concurrent ingest (no lost increments), the
   decision table, and alert de-duplication
 
-## MW3 — the streaming proxy
+## MW3 — the streaming proxy ✅
 
 - `apps/proxy-worker`: its own public origin, no D1/KV/R2 binding, service
   bindings to `identity-worker` (key resolution) and `ledger-worker` (an
