@@ -72,6 +72,5 @@ export async function recordAudit(executor: SqlExecutor, input: AuditInput): Pro
 }
 
 function warn(msg: string, input: AuditInput): void {
-  // eslint-disable-next-line no-console -- one fixed-shape line; no payload, no error text
   console.warn(JSON.stringify({ level: "warn", msg, type: input.type, requestId: input.requestId }));
 }

@@ -29,7 +29,6 @@ export async function runScheduledSweep(env: Env, now: Date): Promise<SweepRepor
     console.log(JSON.stringify({ level: "info", msg: "ledger.sweep", ...report }));
     return report;
   } catch {
-    // eslint-disable-next-line no-console -- fixed string; never the error's text
     console.error(JSON.stringify({ level: "error", msg: "ledger.sweep.failed" }));
     return null;
   } finally {
