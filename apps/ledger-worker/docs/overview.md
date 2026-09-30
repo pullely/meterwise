@@ -29,3 +29,14 @@ All under `/v1/organizations/{org}/`: `POST llm-events` (`ledger.ingest`:
 owner, admin, builder, which includes an API key created with the builder
 role), `GET llm-events`, `GET llm-costs`, `GET llm-prices` (`ledger.read`:
 every org role).
+
+## MW2 — budgets and guardrails
+
+- `PUT/GET/DELETE budgets/{tenant}` and `GET budgets` (`*` is the org-wide
+  default); writes need `ledger.budget.write` (owner, admin) and are audited.
+- `POST llm-check` answers allow / warn / deny / downgrade from the
+  month-to-date rollup (`ledger_spend_rollups`), maintained at ingest.
+- `GET alerts`, and a `*/15 * * * *` cron (`scheduled()` → `sweep.ts`) that
+  reconciles the rollups, raises runaway-loop, abusive-user and budget alerts,
+  claims each once, and emails owners and admins through
+  `NOTIFICATIONS_WORKER`.

@@ -16,3 +16,11 @@
   cache. Expected (MW-L).
 - **Prices changed at a provider:** never `UPDATE` a row. Add a version with a
   new `effective_from`, so stored costs keep the price that was true.
+
+## The sweep (MW2)
+
+Every tick logs one line: `{"msg":"ledger.sweep", windowStart, windowEnd,
+reconciled, candidates, raised, alreadyRaised, deferred, emailsAccepted}`.
+`reconciled > 0` means an ingest-time rollup upsert was lost and the tick
+restored it. `deferred > 0` means no email was accepted (or the binding is
+missing); the claim was given back and the next tick retries.
