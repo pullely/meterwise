@@ -11,6 +11,10 @@
   "vars": {
     "ENVIRONMENT": "local"
   },
+  // MW2: the anomaly and budget sweep (design §6).
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
   "env": {
     "dev": {
       "vars": {
@@ -37,6 +41,10 @@
         {
           "binding": "POLICY_WORKER",
           "service": "meterwise-policy-worker-stage"
+        },
+        {
+          "binding": "NOTIFICATIONS_WORKER",
+          "service": "meterwise-notifications-worker-stage"
         }
       ]
     },
@@ -60,6 +68,10 @@
         {
           "binding": "POLICY_WORKER",
           "service": "meterwise-policy-worker-prod"
+        },
+        {
+          "binding": "NOTIFICATIONS_WORKER",
+          "service": "meterwise-notifications-worker-prod"
         }
       ]
     }

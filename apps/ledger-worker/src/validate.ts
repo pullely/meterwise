@@ -1,4 +1,7 @@
 import {
+  BUDGET_DEFAULT_TENANT,
+  BUDGET_MAX_DOWNGRADES,
+  BUDGET_MAX_LIMIT_NANOUSD,
   COST_DIMENSIONS,
   EVENT_ID_RE,
   LEDGER_MAX_AGE_DAYS,
@@ -224,4 +227,104 @@ export function validateEventsQuery(params: URLSearchParams): Validated<EventsQu
   }
   if (Object.keys(fields).length > 0) return { valid: false, fields };
   return { valid: true, value: q };
+}
+
+// ── MW2 (design §4.2) ───────────────────────────────────────
+
+/** A tenant taken from a path segment: decoded, 1–128 characters, no control characters, or "*". */
+export function parseTenantSegment(segment: string): string | null {
+  let s: string;
+  try {
+    s = decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+  if (s === BUDGET_DEFAULT_TENANT) return s;
+  const errs: string[] = [];
+  const t = attribution(s, 128, true, errs);
+  return errs.length || t === null || t !== s ? null : t;
+}
+
+function limit(v: unknown, out: string[]): number | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== "number" || !Number.isSafeInteger(v) || v <= 0 || v > BUDGET_MAX_LIMIT_NANOUSD) {
+    out.push(`An integer number of nano-USD from 1 to ${BUDGET_MAX_LIMIT_NANOUSD}, or null`);
+    return null;
+  }
+  return v;
+}
+
+function modelName(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const m = normalizeModel(v);
+  return m.length >= 1 && m.length <= 128 && !/[\s\u0000-\u001f\u007f]/.test(m) ? m : null;
+}
+
+export interface CleanBudget {
+  softLimitNanoUsd: number | null;
+  hardLimitNanoUsd: number | null;
+  downgrade: Record<string, string>;
+}
+
+/** PUT budgets/{tenant}: at least one limit; soft < hard when both are set; a small model → model map. */
+export function validateBudgetBody(body: unknown): Validated<CleanBudget> {
+  const fields: Fields = {};
+  if (!isObject(body)) return { valid: false, fields: { body: ["Must be an object"] } };
+  const soft = limit(body.softLimitNanoUsd, (fields.softLimitNanoUsd = []));
+  const hard = limit(body.hardLimitNanoUsd, (fields.hardLimitNanoUsd = []));
+  if (fields.softLimitNanoUsd!.length === 0 && fields.hardLimitNanoUsd!.length === 0) {
+    if (soft === null && hard === null) fields.body = ["Set softLimitNanoUsd, hardLimitNanoUsd or both"];
+    else if (soft !== null && hard !== null && soft >= hard) fields.softLimitNanoUsd!.push("Must be below hardLimitNanoUsd");
+  }
+  const downgrade: Record<string, string> = {};
+  if (body.downgrade !== undefined && body.downgrade !== null) {
+    const errs = (fields.downgrade = [] as string[]);
+    if (!isObject(body.downgrade)) errs.push("An object mapping a model to a cheaper model");
+    else {
+      const entries = Object.entries(body.downgrade);
+      if (entries.length > BUDGET_MAX_DOWNGRADES) errs.push(`At most ${BUDGET_MAX_DOWNGRADES} entries`);
+      for (const [from, to] of entries) {
+        const f = modelName(from);
+        const t = modelName(to);
+        if (!f || !t) errs.push(`"${from.slice(0, 40)}": model names of 1 to 128 characters without whitespace`);
+        else if (f === t) errs.push(`"${f}": maps to itself`);
+        else downgrade[f] = t;
+      }
+    }
+  }
+  for (const k of Object.keys(fields)) if (fields[k]!.length === 0) delete fields[k];
+  if (Object.keys(fields).length > 0) return { valid: false, fields };
+  return { valid: true, value: { softLimitNanoUsd: soft, hardLimitNanoUsd: hard, downgrade } };
+}
+
+export interface CleanCheck {
+  tenant: string;
+  feature: string | null;
+  user: string | null;
+  provider: string;
+  model: string;
+  estimatedInputTokens: number;
+}
+
+/** POST llm-check. */
+export function validateCheckBody(body: unknown): Validated<CleanCheck> {
+  const fields: Fields = {};
+  if (!isObject(body)) return { valid: false, fields: { body: ["Must be an object"] } };
+  const at = (k: string): string[] => (fields[k] ??= []);
+  const tenant = attribution(body.tenant, 128, true, at("tenant")) ?? "";
+  const feature = attribution(body.feature, 64, false, at("feature"));
+  const user = attribution(body.user, 128, false, at("user"));
+  let provider = "";
+  if (typeof body.provider !== "string" || !PROVIDER_RE.test(body.provider.trim().toLowerCase())) {
+    at("provider").push("A provider id such as openai or anthropic");
+  } else provider = body.provider.trim().toLowerCase();
+  const model = modelName(body.model);
+  if (!model) at("model").push("1 to 128 characters without whitespace");
+  let estimatedInputTokens = 0;
+  if (body.estimatedInputTokens !== undefined && body.estimatedInputTokens !== null) {
+    estimatedInputTokens = tokens(body.estimatedInputTokens, at("estimatedInputTokens"));
+  }
+  for (const k of Object.keys(fields)) if (fields[k]!.length === 0) delete fields[k];
+  if (Object.keys(fields).length > 0) return { valid: false, fields };
+  return { valid: true, value: { tenant, feature, user, provider, model: model!, estimatedInputTokens } };
 }

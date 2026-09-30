@@ -59,6 +59,7 @@ const ORG_ROLE_PERMISSIONS: Record<OrganizationRole, readonly string[]> = {
     "project.repo_link.write",
     "ledger.read",
     "ledger.ingest",
+    "ledger.budget.write",
   ],
   admin: [
     "organization.read",
@@ -102,6 +103,7 @@ const ORG_ROLE_PERMISSIONS: Record<OrganizationRole, readonly string[]> = {
     "project.repo_link.write",
     "ledger.read",
     "ledger.ingest",
+    "ledger.budget.write",
   ],
   builder: [
     "organization.read",
@@ -257,6 +259,7 @@ const ALL_KNOWN_ACTIONS: ReadonlySet<string> = new Set([
   "project.repo_link.write",
   "ledger.read",
   "ledger.ingest",
+  "ledger.budget.write",
 ]);
 
 function isOrgRole(role: string): role is OrganizationRole {

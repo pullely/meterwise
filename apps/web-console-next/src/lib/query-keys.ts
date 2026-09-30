@@ -13,6 +13,8 @@ export const qk = {
   llmCosts: (orgId: string, by: string, from: string, to: string) => ["llm-costs", orgId, by, from, to] as const,
   llmEvents: (orgId: string) => ["llm-events", orgId] as const,
   llmPrices: (orgId: string, version: string) => ["llm-prices", orgId, version] as const,
+  llmBudgets: (orgId: string) => ["llm-budgets", orgId] as const,
+  llmAlerts: (orgId: string) => ["llm-alerts", orgId] as const,
   environments: (orgId: string, projectId: string) =>
     ["environments", orgId, projectId] as const,
   members: (orgId: string) => ["members", orgId] as const,

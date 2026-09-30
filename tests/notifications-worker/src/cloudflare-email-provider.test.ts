@@ -191,6 +191,41 @@ describe("email templates", () => {
     expect(rendered!.text).toContain("member role");
   });
 
+  test("renders ledger.anomaly.detected for a runaway loop, escaping the customer's strings", () => {
+    const rendered = renderEmailTemplate(
+      "ledger.anomaly.detected",
+      { kind: "runaway_loop", tenant: "acme<script>", feature: "summarize", events: 250, baselineMedian: 0, windowEnd: "2026-09-30T10:15:00.000Z" },
+      { brandName: "Meterwise" },
+    );
+    expect(rendered).not.toBeNull();
+    expect(rendered!.subject).toBe("Meterwise: LLM usage anomaly for tenant acme<script>");
+    expect(rendered!.text).toContain("made 250 LLM calls");
+    expect(rendered!.text).toContain('feature "summarize"');
+    expect(rendered!.html).toContain("acme&lt;script&gt;");
+    expect(rendered!.html).not.toContain("<script>");
+  });
+
+  test("renders ledger.anomaly.detected for an abusive end-user", () => {
+    const rendered = renderEmailTemplate("ledger.anomaly.detected", {
+      kind: "abusive_user",
+      tenant: "acme",
+      user: "u-9",
+      userCostUsd: "6.000000000",
+      tenantCostUsd: "7.000000000",
+      windowEnd: "2026-09-30T10:15:00.000Z",
+    });
+    expect(rendered!.text).toContain('End-user "u-9" of tenant "acme" spent $6.000000000 of the tenant\'s $7.000000000');
+  });
+
+  test("renders ledger.budget.crossed for the soft and the hard level", () => {
+    const soft = renderEmailTemplate("ledger.budget.crossed", { level: "soft", tenant: "acme", period: "2026-09", spentUsd: "0.010500000", limitUsd: "0.010000000" });
+    expect(soft!.subject).toBe("Tenant acme reached its soft LLM budget");
+    expect(soft!.text).toContain("now answer warn");
+    const hard = renderEmailTemplate("ledger.budget.crossed", { level: "hard", tenant: "acme", period: "2026-09", spentUsd: "0.021000000", limitUsd: "0.020000000" });
+    expect(hard!.text).toContain("reaching its hard budget of $0.020000000");
+    expect(hard!.text).toContain("now answer deny");
+  });
+
   test("returns null for unknown template keys", () => {
     expect(renderEmailTemplate("nope.unknown", {})).toBeNull();
   });

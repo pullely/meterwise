@@ -4,6 +4,9 @@ import { handleIngest } from "./handlers/ingest.js";
 import { handleListEvents } from "./handlers/events.js";
 import { handleCosts } from "./handlers/costs.js";
 import { handlePrices } from "./handlers/prices.js";
+import { handleCheck } from "./handlers/check.js";
+import { handleListAlerts } from "./handlers/alerts.js";
+import { handleDeleteBudget, handleGetBudget, handleListBudgets, handlePutBudget } from "./handlers/budgets.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
 import { generateRequestId, parseOrgPublicId } from "./ids.js";
 
@@ -32,21 +35,42 @@ function resolveActor(request: Request): ActorContext | null {
 }
 
 type Handler = (request: Request, env: Env, requestId: string, actor: ActorContext, orgId: string) => Promise<Response>;
+type TenantHandler = (request: Request, env: Env, requestId: string, actor: ActorContext, orgId: string, tenant: string) => Promise<Response>;
 
-// Every route is org-scoped: /v1/organizations/{org}/…  (design §4.1)
+// Every route is org-scoped: /v1/organizations/{org}/…  (design §4.1, §4.2)
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "llm-events": { GET: handleListEvents, POST: handleIngest },
   "llm-costs": { GET: handleCosts },
   "llm-prices": { GET: handlePrices },
+  "llm-check": { POST: handleCheck },
+  budgets: { GET: handleListBudgets },
+  alerts: { GET: handleListAlerts },
 };
 
-const ORG_ROUTE_RE = /^\/v1\/organizations\/([^/]+)\/(llm-events|llm-costs|llm-prices)$/;
+const TENANT_ROUTES: Partial<Record<string, TenantHandler>> = {
+  GET: handleGetBudget,
+  PUT: handlePutBudget,
+  DELETE: handleDeleteBudget,
+};
+
+const ORG_ROUTE_RE = /^\/v1\/organizations\/([^/]+)\/(llm-events|llm-costs|llm-prices|llm-check|budgets|alerts)$/;
+const BUDGET_ROUTE_RE = /^\/v1\/organizations\/([^/]+)\/budgets\/([^/]+)$/;
 
 export async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const requestId = resolveRequestId(request);
   try {
     if (url.pathname === "/health" && request.method === "GET") return handleHealth(env, requestId);
+    const b = url.pathname.match(BUDGET_ROUTE_RE);
+    if (b) {
+      const orgId = parseOrgPublicId(b[1]!);
+      if (!orgId) return notFound(requestId);
+      const handler = TENANT_ROUTES[request.method];
+      if (!handler) return methodNotAllowed(requestId);
+      const actor = resolveActor(request);
+      if (!actor) return errorResponse("unauthenticated", "Authentication required", 401, requestId);
+      return await handler(request, env, requestId, actor, orgId, b[2]!);
+    }
     const m = url.pathname.match(ORG_ROUTE_RE);
     if (!m) return notFound(requestId, url.pathname);
     const orgId = parseOrgPublicId(m[1]!);

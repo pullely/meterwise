@@ -169,10 +169,63 @@ const renderInvitationAccepted: TemplateRenderer = (data, opts) => {
   return { subject, html, text };
 };
 
+// ── Meterwise (MW2): ledger-worker's alerts ─────────────────
+// templateData carries only the customer's own attribution strings (tenant,
+// feature, end-user), amounts as exact decimal strings and ISO timestamps.
+// Never a credential: the ledger stores none.
+
+const ANOMALY_LINES: Record<string, (d: TemplateData) => string> = {
+  runaway_loop: (d) =>
+    `Tenant "${str(d, "tenant")}"${str(d, "feature") ? `, feature "${str(d, "feature")}"` : ""} made ${str(d, "events")} LLM calls in the hour before ${formatTimestamp(str(d, "windowEnd"))}, over 10 times its usual rate (7-day median ${str(d, "baselineMedian")} an hour). This looks like a runaway loop.`,
+  abusive_user: (d) =>
+    `End-user "${str(d, "user")}" of tenant "${str(d, "tenant")}" spent $${str(d, "userCostUsd")} of the tenant's $${str(d, "tenantCostUsd")} in the hour before ${formatTimestamp(str(d, "windowEnd"))}.`,
+};
+
+const renderLedgerAnomaly: TemplateRenderer = (data, opts) => {
+  const brand = opts.brandName ?? "";
+  const kind = str(data, "kind");
+  const line = (ANOMALY_LINES[kind] ?? (() => `An unusual pattern of LLM usage was detected for tenant "${str(data, "tenant")}".`))(data);
+  const subject = `${brand ? `${brand}: ` : ""}LLM usage anomaly for tenant ${str(data, "tenant")}`;
+  const follow = "Check the Costs page for the calls behind it. You get one email per anomaly per window.";
+  const text = [line, follow].join("\n\n");
+  const html = htmlShell(
+    "LLM usage anomaly",
+    [
+      `<p style="margin:0 0 16px;font-size:14px;">${escapeHtml(line)}</p>`,
+      `<p style="margin:0;font-size:13px;color:#6b6b80;">${escapeHtml(follow)}</p>`,
+    ].join(""),
+    escapeHtml(brand ? `Sent by ${brand}` : "This is an automated email."),
+  );
+  return { subject, html, text };
+};
+
+const renderLedgerBudgetCrossed: TemplateRenderer = (data, opts) => {
+  const brand = opts.brandName ?? "";
+  const level = str(data, "level") === "hard" ? "hard" : "soft";
+  const line = `Tenant "${str(data, "tenant")}" has spent $${str(data, "spentUsd")} on LLM calls in ${str(data, "period")}, reaching its ${level} budget of $${str(data, "limitUsd")}.`;
+  const effect =
+    level === "hard"
+      ? "Pre-flight checks for this tenant now answer deny until the month ends or the budget is raised."
+      : "Pre-flight checks for this tenant now answer warn, or downgrade where a cheaper model is mapped.";
+  const subject = `${brand ? `${brand}: ` : ""}Tenant ${str(data, "tenant")} reached its ${level} LLM budget`;
+  const text = [line, effect].join("\n\n");
+  const html = htmlShell(
+    `${level === "hard" ? "Hard" : "Soft"} budget reached`,
+    [
+      `<p style="margin:0 0 16px;font-size:14px;">${escapeHtml(line)}</p>`,
+      `<p style="margin:0;font-size:13px;color:#6b6b80;">${escapeHtml(effect)}</p>`,
+    ].join(""),
+    escapeHtml(brand ? `Sent by ${brand}` : "This is an automated email."),
+  );
+  return { subject, html, text };
+};
+
 const TEMPLATES: Record<string, TemplateRenderer> = {
   "auth.magic_link": renderMagicLink,
   "invitation.created": renderInvitationCreated,
   "invitation.accepted": renderInvitationAccepted,
+  "ledger.anomaly.detected": renderLedgerAnomaly,
+  "ledger.budget.crossed": renderLedgerBudgetCrossed,
 };
 
 /**

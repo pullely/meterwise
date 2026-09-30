@@ -46,6 +46,13 @@ describe("api-edge ledger facade", () => {
       "/v1/organizations/org_a/llm-events",
       "/v1/organizations/org_a/llm-costs",
       "/v1/organizations/org_a/llm-prices",
+      // MW2
+      "/v1/organizations/org_a/llm-check",
+      "/v1/organizations/org_a/budgets",
+      "/v1/organizations/org_a/budgets/acme",
+      "/v1/organizations/org_a/budgets/%2A",
+      "/v1/organizations/org_a/budgets/*",
+      "/v1/organizations/org_a/alerts",
     ]) {
       expect(isLedgerRoute(p)).toBe(true);
     }
@@ -54,7 +61,11 @@ describe("api-edge ledger facade", () => {
       "/v1/organizations/org_a/projects",
       "/v1/organizations/org_a/api-keys",
       "/v1/organizations/org_a/llm-events/mwe_b",
-      "/v1/organizations/org_a/llm-check",
+      "/v1/organizations/org_a/llm-checks",
+      "/v1/organizations/org_a/llm-check/x",
+      "/v1/organizations/org_a/budgets/acme/x",
+      "/v1/organizations/org_a/budgets/",
+      "/v1/organizations/org_a/alerts/mwa_1",
       "/v1/organizations/org_a/llm-costsx",
       "/v1/llm-events",
     ]) {

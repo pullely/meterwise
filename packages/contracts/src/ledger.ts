@@ -235,3 +235,149 @@ export interface GetLlmPricesResponse {
   version: string | null;
   prices: PublicModelPrice[];
 }
+
+// ---------------------------------------------------------------------------
+// MW2: budgets, the pre-flight check and alerts (design §1.4, §4.2, §6)
+// ---------------------------------------------------------------------------
+
+/** The org-wide default budget's tenant key. */
+export const BUDGET_DEFAULT_TENANT = "*";
+/** Largest limit accepted: $1,000,000 a month, far inside 2^53 nano-USD. */
+export const BUDGET_MAX_LIMIT_NANOUSD = 1_000_000 * 1_000_000_000;
+export const BUDGET_MAX_DOWNGRADES = 50;
+
+export const CHECK_DECISIONS = ["allow", "warn", "deny", "downgrade"] as const;
+export type CheckDecision = (typeof CHECK_DECISIONS)[number];
+
+export const CHECK_REASONS = [
+  "no_budget",
+  "within_budget",
+  "soft_limit_reached",
+  "soft_limit_downgrade",
+  "hard_limit_reached",
+] as const;
+export type CheckReason = (typeof CHECK_REASONS)[number];
+
+export const ALERT_KINDS = ["runaway_loop", "abusive_user", "budget_soft", "budget_hard"] as const;
+export type AlertKind = (typeof ALERT_KINDS)[number];
+
+/** The UTC calendar month ("YYYY-MM") a timestamp falls in: the budget period. */
+export function budgetPeriod(iso: string): string {
+  return iso.slice(0, 7);
+}
+
+export interface BudgetLimits {
+  softLimitNanoUsd: number | null;
+  hardLimitNanoUsd: number | null;
+  /** requested model → cheaper model, lower-cased. */
+  downgrade: Record<string, string>;
+}
+
+export interface CheckOutcome {
+  decision: CheckDecision;
+  /** The model to call: the requested one, or the downgrade target. */
+  model: string;
+  reason: CheckReason;
+}
+
+/**
+ * The pre-flight decision table (design §4.2, §6), a pure function so the
+ * worker, the proxy and the tests share it. `projected` is month-to-date
+ * spend plus the caller's estimate for this call (0 when it gave none):
+ *
+ *   no budget                                  → allow  (no_budget)
+ *   hard set and projected ≥ hard              → deny   (hard_limit_reached)
+ *   soft set and projected ≥ soft, model in map → downgrade to the mapped model
+ *   soft set and projected ≥ soft              → warn   (soft_limit_reached)
+ *   otherwise                                  → allow  (within_budget)
+ *
+ * The check is advisory: it never calls a provider, and a hard budget can be
+ * overshot by the calls in flight when it is crossed (design §6).
+ */
+export function decideCheck(projectedNanoUsd: number, budget: BudgetLimits | null, model: string): CheckOutcome {
+  if (!budget) return { decision: "allow", model, reason: "no_budget" };
+  if (budget.hardLimitNanoUsd !== null && projectedNanoUsd >= budget.hardLimitNanoUsd) {
+    return { decision: "deny", model, reason: "hard_limit_reached" };
+  }
+  if (budget.softLimitNanoUsd !== null && projectedNanoUsd >= budget.softLimitNanoUsd) {
+    const target = budget.downgrade[model];
+    if (target && target !== model) return { decision: "downgrade", model: target, reason: "soft_limit_downgrade" };
+    return { decision: "warn", model, reason: "soft_limit_reached" };
+  }
+  return { decision: "allow", model, reason: "within_budget" };
+}
+
+export interface PutBudgetRequest {
+  /** nano-USD; at least one of the two; soft < hard when both are set. */
+  softLimitNanoUsd?: number | null;
+  hardLimitNanoUsd?: number | null;
+  downgrade?: Record<string, string>;
+}
+
+export interface PublicBudget {
+  /** mwb_… */
+  id: string;
+  /** A tenant, or "*" for the org-wide default. */
+  tenant: string;
+  softLimitNanoUsd: number | null;
+  softLimitUsd: string | null;
+  hardLimitNanoUsd: number | null;
+  hardLimitUsd: string | null;
+  downgrade: Record<string, string>;
+  /** The current budget period (UTC month) and this tenant's spend in it; null for "*", which applies to each tenant on its own. */
+  period: string;
+  spentNanoUsd: number | null;
+  spentUsd: string | null;
+  updatedAt: string;
+}
+
+export interface ListBudgetsResponse {
+  period: string;
+  budgets: PublicBudget[];
+}
+
+export interface LlmCheckRequest {
+  tenant: string;
+  feature?: string | null;
+  user?: string | null;
+  provider: string;
+  model: string;
+  /** Prompt tokens the caller is about to send; priced at the model's input rate and added to the spend. */
+  estimatedInputTokens?: number | null;
+}
+
+export interface LlmCheckResponse {
+  decision: CheckDecision;
+  /** The model to call (the downgrade target on "downgrade"). */
+  model: string;
+  requestedModel: string;
+  reason: CheckReason;
+  period: string;
+  spentNanoUsd: number;
+  estimatedNanoUsd: number;
+  softLimitNanoUsd: number | null;
+  hardLimitNanoUsd: number | null;
+  /** Which budget applied: the tenant's own, "*", or null for none. */
+  budgetTenant: string | null;
+}
+
+export interface PublicAlert {
+  /** mwa_… */
+  id: string;
+  kind: AlertKind;
+  tenant: string;
+  feature: string | null;
+  user: string | null;
+  windowStart: string;
+  windowEnd: string;
+  detail: Record<string, unknown>;
+  /** claimed → notified | no_recipients. "notified" means notifications-worker accepted it, not that it was delivered. */
+  status: "claimed" | "notified" | "no_recipients";
+  recipients: number;
+  accepted: number;
+  createdAt: string;
+}
+
+export interface ListAlertsResponse {
+  alerts: PublicAlert[];
+}

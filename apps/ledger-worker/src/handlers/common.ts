@@ -4,7 +4,7 @@ import { allowed } from "../authz.js";
 import { openDb, type Db } from "../context.js";
 import { notFound, unavailable, validationError } from "../http.js";
 
-export type LedgerAction = "ledger.read" | "ledger.ingest";
+export type LedgerAction = "ledger.read" | "ledger.ingest" | "ledger.budget.write";
 
 export async function readJson(request: Request): Promise<{ ok: true; body: unknown } | { ok: false }> {
   try {
