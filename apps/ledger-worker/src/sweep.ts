@@ -60,6 +60,26 @@ interface Found {
   templateData: Record<string, string | number | boolean | null>;
 }
 
+/**
+ * An alert's subject, the claim key's third part: a JSON array of the
+ * customer's attribution strings, [tenant] or [tenant, feature|user]. (Not a
+ * NUL-joined string: SQLite hands TEXT back through C strings and a NUL
+ * truncates it.)
+ */
+export function alertSubject(...parts: string[]): string {
+  return JSON.stringify(parts);
+}
+
+export function parseAlertSubject(subject: string): string[] {
+  try {
+    const v = JSON.parse(subject) as unknown;
+    if (Array.isArray(v) && v.every((x) => typeof x === "string")) return v as string[];
+  } catch {
+    // fall through
+  }
+  return [subject];
+}
+
 /** The UTC hour a timestamp falls in, as an ISO instant. */
 export function hourOf(iso: string): string {
   return `${iso.slice(0, 13)}:00:00.000Z`;
@@ -99,7 +119,7 @@ async function findAnomalies(guard: GuardrailsRepository, windowStart: string, w
     found.push({
       orgId: c.orgId,
       kind: "runaway_loop",
-      subject: `${c.tenant}\u0000${c.feature}`,
+      subject: alertSubject(c.tenant, c.feature),
       windowStart: hourOf(c.firstAt),
       detail,
       templateKey: TEMPLATE_ANOMALY,
@@ -119,7 +139,7 @@ async function findAnomalies(guard: GuardrailsRepository, windowStart: string, w
     found.push({
       orgId: u.orgId,
       kind: "abusive_user",
-      subject: `${u.tenant}\u0000${u.user}`,
+      subject: alertSubject(u.tenant, u.user),
       windowStart: hourOf(u.firstAt),
       detail,
       templateKey: TEMPLATE_ANOMALY,
@@ -150,7 +170,7 @@ async function findBudgetCrossings(guard: GuardrailsRepository, period: string):
       found.push({
         orgId: x.orgId,
         kind: level === "hard" ? "budget_hard" : "budget_soft",
-        subject: x.tenant,
+        subject: alertSubject(x.tenant),
         windowStart: `${period}-01T00:00:00.000Z`,
         detail,
         templateKey: TEMPLATE_BUDGET,
@@ -255,7 +275,7 @@ export async function runSweep(deps: SweepDeps, now: Date, requestId = `sweep_${
 }
 
 function audit(executor: SqlExecutor, f: Found, id: string, requestId: string, now: string, recipients: number, accepted: number): Promise<boolean> {
-  const [tenant] = f.subject.split("\u0000");
+  const [tenant] = parseAlertSubject(f.subject);
   return recordAudit(executor, {
     type: "ledger.alert.raised",
     orgId: f.orgId,

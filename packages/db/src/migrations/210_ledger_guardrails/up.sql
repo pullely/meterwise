@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS ledger_alerts (
 );
 
 -- table ledger_alerts: One row per raised alert. UNIQUE (org_id, kind, subject, window_start): the cron claims it with INSERT … ON CONFLICT DO NOTHING RETURNING before sending, so two ticks cannot email twice.
--- column ledger_alerts.subject: tenant, or tenant + NUL + feature (runaway_loop), or tenant + NUL + user (abusive_user). Customer attribution strings only.
+-- column ledger_alerts.subject: A JSON array of the customer's attribution strings: [tenant], [tenant, feature] (runaway_loop) or [tenant, user] (abusive_user).
 -- column ledger_alerts.accepted: How many recipient emails notifications-worker accepted (202). Accepted is not delivered.
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_ledger_alerts_claim ON ledger_alerts (org_id, kind, subject, window_start);

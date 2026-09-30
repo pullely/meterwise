@@ -5,9 +5,10 @@ import type { ActorContext } from "../router.js";
 import { successResponse } from "../http.js";
 import { alertPublicId } from "../ids.js";
 import { withDb } from "./common.js";
+import { parseAlertSubject } from "../sweep.js";
 
 export function toPublicAlert(a: LedgerAlert): PublicAlert {
-  const [tenant, second] = a.subject.split("\u0000");
+  const [tenant, second] = parseAlertSubject(a.subject);
   return {
     id: alertPublicId(a.id),
     kind: a.kind,
