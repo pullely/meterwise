@@ -6,8 +6,8 @@ the code departed from `design.md`.
 | Milestone | State | PR |
 |---|---|---|
 | MW0 — the spec | ✅ merged 9075db2, pushed with `orun spec push` | #9 |
-| MW1 — the usage ledger | In review | this PR |
-| MW2 — budgets and guardrails | | |
+| MW1 — the usage ledger | ✅ merged d1b1387; `main` deploy run 35944403297 green on all 66 lanes after two transient reruns (runbook trap 31); stage and prod verified | #10 |
+| MW2 — budgets and guardrails | In review | this PR |
 | MW3 — the streaming proxy | | |
 
 ## Departures from the design

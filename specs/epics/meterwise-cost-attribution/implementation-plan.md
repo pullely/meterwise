@@ -19,7 +19,7 @@ This doc set, merged to `main` and attached to the epic with `orun spec push`.
 - the five documents are on `main`
 - `orun spec list --epic meterwise-cost-attribution` shows them
 
-## MW1 — the usage ledger
+## MW1 — the usage ledger ✅
 
 This milestone builds the `ledger` bounded context end to end:
 
