@@ -192,5 +192,14 @@ export const manifest: MigrationManifest = {
       description:
         "Usage ledger foundation (MW1) — the dated, versioned, cited model price table (version 2026-09-24: OpenAI and Anthropic base rates) and the per-org ledger of reported LLM calls, unique per (org_id, event_key), each priced with the version in effect when it happened",
     },
+    {
+      id: "210_ledger_guardrails",
+      context: "ledger",
+      path: "210_ledger_guardrails/up.sql",
+      checksum:
+        "862f90ed5cd903417f3e2786cdd7e1cf1625103d5e93ebc212888c7f71632405",
+      description:
+        "Budgets and guardrails (MW2) — soft and hard monthly budgets per tenant with a downgrade map, month-to-date spend rollups (backfilled once from ledger_events, maintained at ingest), and alerts claimed once per (org, kind, subject, window)",
+    },
   ],
 };

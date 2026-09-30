@@ -6,12 +6,14 @@ import { createTimings } from "@saas/contracts/timing";
 
 // Meterwise (ledger-worker). One authenticated lane, /v1/organizations/{org}/…:
 // llm-events (ingest from the customer's SDK with a baseline API key, and the
-// event list), llm-costs and llm-prices. resolveActor → actor headers over the
+// event list), llm-costs and llm-prices; from MW2 llm-check (the pre-flight
+// budget check), budgets, budgets/{tenant} and alerts. resolveActor → actor headers over the
 // LEDGER_WORKER binding, like every other org route; an API key resolves to its
 // service principal, and the worker runs membership + policy itself. The
 // `ledger` rate-limit family (rate-limit.ts) is sized for SDK ingest.
 
-const LEDGER_RE = /^\/v1\/organizations\/[^/]+\/llm-(?:events|costs|prices)$/;
+const LEDGER_RE =
+  /^\/v1\/organizations\/[^/]+\/(?:llm-(?:events|costs|prices|check)|budgets(?:\/[^/]+)?|alerts)$/;
 
 const FORWARDED_HEADERS = ["content-type", "content-length", "traceparent", "idempotency-key"];
 const BODY_METHODS = new Set(["POST", "PATCH", "PUT"]);

@@ -11,6 +11,7 @@ import {
   FolderKanban,
   CircleDollarSign,
   Tags,
+  BellRing,
   Boxes,
   KeyRound,
   Settings,
@@ -38,6 +39,7 @@ import { SidebarFind } from "./sidebar-find";
 const ICONS: Record<string, LucideIcon> = {
   CircleDollarSign,
   Tags,
+  BellRing,
   Building2,
   FolderKanban,
   Boxes,

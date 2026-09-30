@@ -98,15 +98,32 @@ stated in the console. MW3's proxy can reserve-then-settle because it sees
 both ends of the call. A DO or KV cache is added only if `llm-check` misses
 its latency target on stage.
 
-## MW-J — How ledger-worker reports tracked spend to the metering context (RISK, open)
+## MW-J — How ledger-worker reports tracked spend to the metering context (DECIDED in MW2; enforcement open)
 
 The plan's allowance ($1,000/month tracked on Free) belongs in the baseline's
 metering and quota context. `metering-worker`'s routes authorize a member with
 `organization.metering.write`, which the SDK's `builder` key lacks and a cron
-has no member to act as. Options for MW2: an internal, system-actor route on
-metering-worker, or a daily cron in ledger-worker writing through the metering
-repository. The first keeps the context boundary and is preferred. Decide in
-MW2.
+has no member to act as.
+
+**Decided in MW2: the metering repository, at ingest.** `ledger-worker`
+writes one `metering_usage_records` row per ingest request that accepted
+priced events, through `createMeteringRepository(...).recordUsage` on the
+same D1 database: metric `ledger.tracked_spend_nanousd`, quantity = the
+nano-USD those accepted events cost, idempotency key `ledger:<first accepted
+event id>` (`apps/ledger-worker/src/tracked-spend.ts`). An event is accepted
+exactly once (design §3), so tracked spend is recorded exactly once, and the
+baseline's usage reads and `checkQuota(org, metric)` see it. The internal
+system-actor route on metering-worker (the option preferred at MW0) was not
+built: it would be a new trust edge (a caller that is no member) into a
+worker whose only job here would be to run the same INSERT on the same
+database. The write is best-effort; a lost write under-counts that request
+in metering, never in the ledger.
+
+**Still open:** no `metering_quota_definitions` row exists for the metric,
+because the baseline's plan catalog does not write quota definitions, so
+`checkQuota` answers `no_quota_defined` and the $1,000 allowance is tracked
+but not enforced. Enforcing it is a billing-side change (a quota definition
+per plan) and a `llm-check` reason; not built in MW2.
 
 ## MW-K — Observability capturing headers in front of the proxy (RISK, open)
 

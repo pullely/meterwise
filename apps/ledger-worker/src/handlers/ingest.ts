@@ -1,4 +1,4 @@
-import { formatUsd, type IngestLlmEventsResponse, type IngestResultItem } from "@saas/contracts/ledger";
+import { budgetPeriod, formatUsd, type IngestLlmEventsResponse, type IngestResultItem } from "@saas/contracts/ledger";
 import type { LedgerEvent } from "@saas/db/ledger";
 import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
@@ -8,6 +8,7 @@ import { actorRef, eventPublicId } from "../ids.js";
 import { PriceBook, fingerprint } from "../pricing.js";
 import { validateIngestBody } from "../validate.js";
 import { invalidJson, readJson, withDb } from "./common.js";
+import { reportTrackedSpend } from "../tracked-spend.js";
 
 function item(eventId: string, status: IngestResultItem["status"], e: Pick<LedgerEvent, "id" | "priceStatus" | "priceVersion" | "costNanoUsd">): IngestResultItem {
   return {
@@ -47,6 +48,8 @@ export async function handleIngest(request: Request, env: Env, requestId: string
     let accepted = 0;
     let duplicates = 0;
     let conflicts = 0;
+    let trackedSpend = 0;
+    let firstTracked: string | null = null;
 
     for (const e of v.value) {
       const fp = await fingerprint(e);
@@ -78,6 +81,15 @@ export async function handleIngest(request: Request, env: Env, requestId: string
       const claimed = await db.ledger.claimEvent(row);
       if (claimed !== null) {
         accepted++;
+        // MW2: the month-to-date rollup, one atomic upsert per ACCEPTED priced
+        // event — never for a duplicate or a conflict (design §1.4). If this
+        // statement is lost after the claim committed, the cron's
+        // reconciliation restores the rollup from ledger_events.
+        if (row.costNanoUsd !== null) {
+          await db.guard.addSpend(orgId, row.tenant, budgetPeriod(row.occurredAt), row.costNanoUsd, receivedAt);
+          trackedSpend += row.costNanoUsd;
+          firstTracked ??= claimed;
+        }
         results.push(item(e.eventId, "accepted", { ...row, id: claimed }));
         continue;
       }
@@ -91,6 +103,7 @@ export async function handleIngest(request: Request, env: Env, requestId: string
         results.push(item(e.eventId, "conflict", existing));
       }
     }
+    if (firstTracked !== null) await reportTrackedSpend(db.executor, orgId, firstTracked, trackedSpend, receivedAt);
     const body: IngestLlmEventsResponse = { results, accepted, duplicates, conflicts };
     return successResponse(body, requestId);
   });

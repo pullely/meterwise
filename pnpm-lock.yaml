@@ -213,6 +213,9 @@ importers:
       '@saas/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@saas/notifications-client':
+        specifier: workspace:*
+        version: link:../../packages/notifications-client
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250508.0

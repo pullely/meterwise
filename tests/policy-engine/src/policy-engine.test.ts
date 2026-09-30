@@ -686,8 +686,9 @@ describe("listEffectivePermissions", () => {
     expect(result.derivedScope.orgId).toBe("org_1");
 
     const allowed = result.permissions.filter((p) => p.allow);
-    // 31 baseline actions + the two ledger.* actions MW1 adds.
-    expect(allowed.length).toBe(33);
+    // 31 baseline actions + the two ledger.* actions MW1 adds + MW2's ledger.budget.write.
+    expect(allowed.length).toBe(34);
+    expect(allowed.map((p) => p.action)).toContain("ledger.budget.write");
   });
 
   it("returns limited permissions for viewer", () => {
@@ -708,6 +709,19 @@ describe("listEffectivePermissions", () => {
       "project.list",
       "project.webhook.read",
     ]);
+  });
+
+  it("grants ledger.budget.write to owner and admin only (MW2)", () => {
+    for (const [role, allow] of [
+      ["owner", true],
+      ["admin", true],
+      ["builder", false],
+      ["viewer", false],
+      ["billing_admin", false],
+    ] as const) {
+      const result = authorize(authReq("ledger.budget.write", "org_1", [orgFact(role, "org_1")]));
+      expect([role, result.allow]).toEqual([role, allow]);
+    }
   });
 
   it("returns billing permissions for billing_admin", () => {

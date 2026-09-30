@@ -18,6 +18,7 @@ export interface Crumb {
 const SEGMENT_LABELS: Record<string, string> = {
   costs: "Costs",
   prices: "Price table",
+  budgets: "Budgets & alerts",
   projects: "Projects",
   environments: "Environments",
   usage: "Usage & quota",

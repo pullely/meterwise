@@ -19,3 +19,8 @@ export const parseEventPublicId = (id: string): Uuid | null => uuidFromPublicId(
 export function actorRef(subjectId: string): string {
   return isUuid(subjectId) ? subjectId : subjectId.slice(0, 64);
 }
+
+/** MW2: a budget. */
+export const budgetPublicId = (uuid: string): string => `mwb_${uuidToHex(uuid)}`;
+/** MW2: an alert. */
+export const alertPublicId = (uuid: string): string => `mwa_${uuidToHex(uuid)}`;

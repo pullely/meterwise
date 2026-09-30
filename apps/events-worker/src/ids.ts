@@ -36,12 +36,24 @@ export function memberPublicId(uuid: string): string {
   return `mem_${uuidToHex(uuid)}`;
 }
 
+/** Meterwise (MW2): a ledger budget. */
+export function ledgerBudgetPublicId(uuid: string): string {
+  return `mwb_${uuidToHex(uuid)}`;
+}
+
+/** Meterwise (MW2): a ledger alert. */
+export function ledgerAlertPublicId(uuid: string): string {
+  return `mwa_${uuidToHex(uuid)}`;
+}
+
 const SUBJECT_KIND_PREFIX: Record<string, (uuid: string) => string> = {
   organization: orgPublicId,
   project: projectPublicId,
   environment: environmentPublicId,
   invitation: invitationPublicId,
   member: memberPublicId,
+  ledger_budget: ledgerBudgetPublicId,
+  ledger_alert: ledgerAlertPublicId,
 };
 
 export function toPublicId(kind: string, rawId: string): string {

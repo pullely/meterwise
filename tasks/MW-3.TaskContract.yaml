@@ -1,0 +1,35 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-3
+spec:
+  goal: Soft and hard monthly budgets per tenant, a pre-flight llm-check answering allow, warn, deny or downgrade, and a 15-minute anomaly cron that emails owners and admins once per alert.
+  # Component refs, fully qualified (runbook trap 15). policy-worker is here
+  # for runbook trap 17: packages/policy-engine gains ledger.budget.write and
+  # policy-worker only redeploys when its own component.yaml changes.
+  affects:
+    - default/meterwise/db
+    - default/meterwise/db-tests
+    - default/meterwise/db-migrate
+    - default/meterwise/contracts
+    - default/meterwise/contracts-tests
+    - default/meterwise/sdk
+    - default/meterwise/policy-engine
+    - default/meterwise/policy-engine-tests
+    - default/meterwise/policy-worker
+    - default/meterwise/ledger-worker
+    - default/meterwise/ledger-worker-tests
+    - default/meterwise/api-edge
+    - default/meterwise/api-edge-tests
+    - default/meterwise/events-worker
+    - default/meterwise/notifications-worker
+    - default/meterwise/notifications-worker-tests
+    - default/meterwise/web-console-next
+    - default/meterwise/web-console-next-tests
+  doneWhen:
+    - migration 210_ledger_guardrails replays twice green on node:sqlite and is applied on stage and prod
+    - on stage llm-check moves allow, then warn or downgrade past the soft budget, then deny past the hard budget
+    - on stage a burst raises exactly one runaway_loop alert across two cron ticks, and notifications-worker accepts the email
+    - tests pin the rollup under concurrent ingest, the decision table, and alert de-duplication on real SQLite
+    - every new route answers 401 unauthenticated on prod and a non-member gets 404 on stage
+  gates: []

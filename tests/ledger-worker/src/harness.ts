@@ -12,15 +12,25 @@ import type { Env } from "@ledger-worker/env";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_ROOT = resolve(__dirname, "../../..", "packages/db/src/migrations");
 
-export function migratedDatabase(): DatabaseSync {
-  const db = new DatabaseSync(":memory:");
-  db.exec("PRAGMA foreign_keys = ON");
-  const dirs = readdirSync(MIGRATIONS_ROOT)
+export function migrationDirs(): string[] {
+  return readdirSync(MIGRATIONS_ROOT)
     .filter((d) => existsSync(join(MIGRATIONS_ROOT, d, "up.sql")))
     .sort();
-  for (const dir of dirs) {
-    const sql = readFileSync(join(MIGRATIONS_ROOT, dir, "up.sql"), "utf8");
-    for (const statement of D1ApiAdapter.splitStatements(sql)) db.exec(statement);
+}
+
+/** Apply one migration's statements, split the way the D1 runner splits them. */
+export function applyMigration(db: DatabaseSync, dir: string): void {
+  const sql = readFileSync(join(MIGRATIONS_ROOT, dir, "up.sql"), "utf8");
+  for (const statement of D1ApiAdapter.splitStatements(sql)) db.exec(statement);
+}
+
+/** Every migration, or those sorting at or before `through`. */
+export function migratedDatabase(through?: string): DatabaseSync {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  for (const dir of migrationDirs()) {
+    if (through !== undefined && dir > through) break;
+    applyMigration(db, dir);
   }
   return db;
 }
@@ -73,7 +83,7 @@ const MEMBERSHIPS: Record<string, Record<string, string>> = {
   [KEY_B]: { [ORG_B]: "builder" },
 };
 const ROLE_ACTIONS: Record<string, ReadonlySet<string>> = {
-  owner: new Set(["ledger.read", "ledger.ingest"]),
+  owner: new Set(["ledger.read", "ledger.ingest", "ledger.budget.write"]),
   builder: new Set(["ledger.read", "ledger.ingest"]),
   viewer: new Set(["ledger.read"]),
 };
