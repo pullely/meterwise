@@ -1,0 +1,11 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-6
+spec:
+  goal: The repository carries an MIT licence so the openproduct listing shows one.
+  affects: []
+  doneWhen:
+    - 'LICENSE at the repo root holds the MIT text'
+    - 'package.json declares the MIT licence'
+  gates: []
