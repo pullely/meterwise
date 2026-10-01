@@ -11,6 +11,7 @@ import { PreconditionInsight } from "@/components/precondition/insight";
 import { ZodForm } from "@/components/ui/zod-form";
 import { z } from "zod";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { BrandMark } from "@/components/brand/brand-mark";
 
 /**
  * /demo — a token-free showcase route. Renders all major UI states
@@ -22,8 +23,8 @@ export default function DemoPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/40 grid place-items-center text-primary-foreground text-sm font-bold">
-            S
+          <div className="h-8 w-8 rounded-lg bg-primary grid place-items-center text-primary-foreground">
+            <BrandMark className="h-5 w-5" />
           </div>
           <div>
             <div className="text-base font-semibold tracking-tight">web-console-next · demo gallery</div>

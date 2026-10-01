@@ -15,6 +15,7 @@ import { CONSOLE_TITLE } from "@/lib/app-config";
 import { useToast } from "@/components/ui/toast";
 import { ZodForm } from "@/components/ui/zod-form";
 import type { OAuthProviderInfo } from "@saas/contracts/auth";
+import { BrandMark } from "@/components/brand/brand-mark";
 
 const emailSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -73,8 +74,8 @@ export default function LoginPage() {
     <div className="min-h-screen grid place-items-center bg-gradient-to-br from-background via-background to-primary/5 px-4">
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/40 grid place-items-center text-primary-foreground font-bold">
-            S
+          <div className="h-9 w-9 rounded-lg bg-primary grid place-items-center text-primary-foreground">
+            <BrandMark className="h-5 w-5" />
           </div>
           <div>
             <div className="text-base font-semibold tracking-tight">{CONSOLE_TITLE}</div>
