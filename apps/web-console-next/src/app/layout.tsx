@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import { Providers } from "./providers";
 import { CONSOLE_TITLE, PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/app-config";
+
+// The product typeface (factory THEMES.md), self-hosted by next/font at build
+// time and exposed as --font-sans on <html>; tailwind's fontFamily.sans and
+// globals.css both read var(--font-sans).
+const fontSans = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" });
+const fontMono = Geist_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: CONSOLE_TITLE,
@@ -21,8 +28,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: light)", color: "#fcfcfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0f11" },
   ],
 };
 
@@ -37,7 +44,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${fontSans.variable} ${fontMono.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {/*
           esbuild's `keepNames` helper (`__name`) is referenced by the

@@ -1,11 +1,19 @@
 {
   "name": "Meterwise Console",
   "short_name": "Meterwise",
-  "description": "Control plane for your projects, environments, and entitlements.",
+  "description": "Per-customer LLM cost attribution and margin guardrails for AI SaaS",
   "start_url": "/orgs",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
-  "orientation": "portrait-primary"
+  "background_color": "#0e0f11",
+  "theme_color": "#0e0f11",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }

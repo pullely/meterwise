@@ -1,0 +1,16 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: MW-7
+spec:
+  goal: The meterwise console has its own visual identity from factory THEMES.md instead of the inherited cirrus theme.
+  affects:
+    - default/meterwise/web-console-next
+  doneWhen:
+    - 'globals.css carries the THEMES.md meterwise light and dark tokens, and no Inter font stack'
+    - 'layout.tsx loads Geist (and Geist Mono as --font-mono) with next/font/google, exposed as --font-sans on html'
+    - 'the console defaults to dark mode'
+    - 'the login, onboarding and demo badges show the gauge mark on solid bg-primary, not the letter S'
+    - 'app/icon.svg is the favicon, and the manifest and PRODUCT_DESCRIPTION carry the openproduct tagline'
+    - 'primary-fg on primary, fg on bg and muted-fg on bg are each at least 4.5:1 in both modes'
+  gates: []

@@ -17,6 +17,7 @@ import { defaultOrgDestination, readLastOrgSlug } from "@/lib/last-org";
 import { CONSOLE_TITLE } from "@/lib/app-config";
 import { SOLO_MODE } from "@/lib/solo-mode";
 import { personalWorkspaceName, personalWorkspaceSlug } from "@/lib/personal-workspace";
+import { BrandMark } from "@/components/brand/brand-mark";
 
 /**
  * Mandatory first-run onboarding (Supabase/Vercel-style): a focused, full-screen
@@ -61,8 +62,8 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <header className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-2.5">
-          <div className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-primary to-primary/40 text-sm font-bold text-primary-foreground">
-            S
+          <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <BrandMark className="h-4 w-4" />
           </div>
           <span className="text-sm font-semibold tracking-tight">{CONSOLE_TITLE}</span>
         </div>
